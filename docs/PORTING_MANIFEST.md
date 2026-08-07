@@ -34,5 +34,5 @@ compatibility matrix requires separate hardware tests.
 - do not copy summary, backups or state into the source tree;
 - the carrier detects corruption with CRC but is not a cryptographic signature.
 
-See `RELEASE_AUDIT.md` for known limitations and the rapid-update hardening
-backlog.
+See `../KNOWN_LIMITATIONS.md` for the runtime limitations that apply to this
+release.

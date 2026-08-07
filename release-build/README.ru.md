@@ -37,5 +37,4 @@ LibProsperoPKG и digest Docker image. v1.0 сохраняет возможно�
 их через переменные Makefile, чтобы сборка выполнялась на машине сопровождающего.
 
 Не коммитьте `dist/`, `builder/bin/`, `builder/obj/`, `icon0.png` и ELF.
-Загрузите их как GitHub Release Assets по инструкции в
-[`../GITHUB_UPLOAD.md`](../GITHUB_UPLOAD.md).
+Загрузите полученные PKG и ELF как GitHub Release Assets.

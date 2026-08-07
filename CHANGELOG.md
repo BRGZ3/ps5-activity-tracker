@@ -17,4 +17,4 @@ Includes:
 - one raw ELF for etaHEN and ShadowMount+/PLK in the tested hardware scenarios.
 
 This is a complete v1.0 release with known operational limitations. They are
-listed in `KNOWN_LIMITATIONS.md` and tracked for rapid maintenance updates.
+listed in `KNOWN_LIMITATIONS.md`.

@@ -20,7 +20,7 @@ Current limitations:
   the runtime is restarted;
 - a title may be missing and appear as `PPSA...` or `CUSA...`;
 - statistics are not separated by console profile;
-- error diagnostics are disabled and extended analytics will come in updates;
+- error diagnostics and extended analytics are not included in v1.0;
 - timezone uses a `Europe/Moscow` fallback before configuration;
 - raw `probe-events.jsonl` is not rotated automatically.
 

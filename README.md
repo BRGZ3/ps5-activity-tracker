@@ -13,8 +13,7 @@ installer metadata (`01.046.000`) so it can be installed over the tested
 runtime versions; do not lower or rewrite that value when uploading the asset.
 
 > This is the first public v1.0 release. Known operational limitations remain;
-> read [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) and the
-> [release audit](RELEASE_AUDIT.md) before installing it.
+> read [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) before installing it.
 
 ## Features
 
@@ -81,8 +80,7 @@ http://<PS5_IP>:12888/
 
 LAN clients are read-only, but they can still read game history and session
 times. Do not forward the port to the Internet or expose it to an untrusted
-network. Token-based LAN access and a safer default remain planned hardening
-work.
+network. The v1.0 server has no authentication.
 
 ## Console data
 
@@ -127,8 +125,7 @@ make
 ```
 
 The builder must finish with `Accepted: True`. Generated ELF/PKG files are not
-committed to the source tree; upload them as GitHub Release Assets. See
-[GITHUB_UPLOAD.md](GITHUB_UPLOAD.md) for the complete procedure.
+committed to the source tree; upload them as GitHub Release Assets.
 
 ## Checks
 
@@ -146,10 +143,7 @@ Do not expand the support matrix based on assumptions.
 
 ## Documentation
 
-- [RELEASE_AUDIT.md](RELEASE_AUDIT.md) — release risks and hardening backlog;
 - [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) — known operational limitations;
-- [GITHUB_UPLOAD.md](GITHUB_UPLOAD.md) — source and Release publication;
-- [PROJECT_FILES.md](PROJECT_FILES.md) — directory map;
 - [docs/PORTING_MANIFEST.md](docs/PORTING_MANIFEST.md) — architecture and boundaries;
 - [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) — tested firmware matrix;
 - [SECURITY.md](SECURITY.md) — LAN privacy and vulnerability reporting.

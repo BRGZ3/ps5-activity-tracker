@@ -37,4 +37,4 @@ image digest. v1.0 keeps them overrideable through Make variables so the build
 can run on the maintainer's machine.
 
 Do not commit `dist/`, `builder/bin/`, `builder/obj/`, `icon0.png` or ELF files.
-Upload them as GitHub Release Assets using [GITHUB_UPLOAD.md](../GITHUB_UPLOAD.md).
+Upload the resulting PKG and ELF as GitHub Release Assets.

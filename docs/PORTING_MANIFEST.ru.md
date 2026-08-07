@@ -34,5 +34,5 @@ Raw ELF проверен в целевом сценарии на firmware 4.50. 
 - не копировать `summary.json`, backup и state в source tree;
 - carrier проверяет CRC, но не является криптографической подписью.
 
-Известные ограничения и backlog быстрых обновлений находятся в
-`RELEASE_AUDIT.ru.md`.
+Ограничения runtime для этого релиза перечислены в
+`../KNOWN_LIMITATIONS.ru.md`.

@@ -14,8 +14,7 @@ PSN и внешних сервисов: runtime читает системные 
 загрузке asset.
 
 > Это первый публичный релиз v1.0. Перед установкой прочитайте
-> [известные ограничения](KNOWN_LIMITATIONS.ru.md) и
-> [аудит релиза](RELEASE_AUDIT.ru.md).
+> [известные ограничения](KNOWN_LIMITATIONS.ru.md).
 
 ## Возможности
 
@@ -81,8 +80,7 @@ http://<PS5_IP>:12888/
 
 LAN-клиенты работают в read-only режиме, но всё равно получают доступ к истории
 игр и времени сессий. Не пробрасывайте порт наружу и не открывайте его в
-недоверенной сети. Политика токена и безопасный режим LAN остаются задачами
-дальнейшего усиления защиты.
+недоверенной сети. В v1.0 у сервера нет аутентификации.
 
 ## Данные на консоли
 
@@ -127,8 +125,7 @@ make
 ```
 
 Сборщик должен завершиться с `Accepted: True`. Generated ELF/PKG не коммитятся
-в source tree, а загружаются как GitHub Release Assets. Полная инструкция
-находится в [GITHUB_UPLOAD.ru.md](GITHUB_UPLOAD.ru.md).
+в source tree, а загружаются как GitHub Release Assets.
 
 ## Проверка
 
@@ -147,10 +144,7 @@ node --check release-build/build-carrier.js
 
 ## Документы
 
-- [RELEASE_AUDIT.ru.md](RELEASE_AUDIT.ru.md) — риски и backlog усиления;
 - [KNOWN_LIMITATIONS.ru.md](KNOWN_LIMITATIONS.ru.md) — известные ограничения;
-- [GITHUB_UPLOAD.ru.md](GITHUB_UPLOAD.ru.md) — публикация исходников и Release Assets;
-- [PROJECT_FILES.ru.md](PROJECT_FILES.ru.md) — карта каталогов;
 - [docs/PORTING_MANIFEST.md](docs/PORTING_MANIFEST.md) — архитектура и границы;
 - [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) — проверенная матрица firmware;
 - [SECURITY.ru.md](SECURITY.ru.md) — приватность LAN и сообщения об уязвимостях.

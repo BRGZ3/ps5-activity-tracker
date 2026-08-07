@@ -66,8 +66,7 @@ def main() -> int:
 
     required = [
         ROOT / "README.md",
-        ROOT / "RELEASE_AUDIT.md",
-        ROOT / "GITHUB_UPLOAD.md",
+        ROOT / "KNOWN_LIMITATIONS.md",
         ROOT / "activity-probe/main.c",
         ROOT / "dashboard/index.html",
         ROOT / "release-build/Makefile",

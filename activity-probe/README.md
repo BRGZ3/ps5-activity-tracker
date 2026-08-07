@@ -68,5 +68,4 @@ Do not attach it to a public issue together with personal history.
 - process and autostart modes must be kept mutually exclusive;
 - v1.0 does not promise rollback for every partial update failure.
 
-Known limitations and the rapid-update hardening backlog are listed in
-[../RELEASE_AUDIT.md](../RELEASE_AUDIT.md).
+Known runtime limitations are listed in [../KNOWN_LIMITATIONS.md](../KNOWN_LIMITATIONS.md).
