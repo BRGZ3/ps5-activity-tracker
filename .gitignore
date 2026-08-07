@@ -1,0 +1,40 @@
+.DS_Store
+
+# Local tooling and generated Python files
+.omx/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Console state, logs and user data (never commit these)
+/summary.json
+/probe-events.jsonl
+/probe.pid
+/backups.json
+/config.json
+/tracker-state*.bin
+/completed-state.bin
+/diagnostics-state.bin
+/ps5-activity-backup/
+/ps5 backup/
+*.db
+*.db-*
+*.jsonl
+*.log
+
+# Build products and release assets
+activity-probe/*.elf
+activity-probe/*.plugin
+release-build/app/sce_sys/icon0.png
+release-build/app/sce_sys/base-icon.png
+release-build/builder/bin/
+release-build/builder/obj/
+release-build/dist/
+release-assets/
+release-assets/**/*.elf
+release-assets/**/*.plugin
+release-assets/**/*.pkg
+release-assets/**/*.sha256
+
+# Historical experiments are kept outside the public v1.0 tree.
+archive/

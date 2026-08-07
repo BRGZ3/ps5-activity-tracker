@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PS5 Activity</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg:#030916; --panel:rgba(9,22,45,.88); --panel2:rgba(11,29,59,.7);
+      --line:rgba(96,155,255,.18); --blue:#2387ff; --cyan:#52d9ff;
+      --green:#43e59b; --muted:#8294b5; --text:#f5f8ff; --pause:#f1bd38;
+    }
+    * { box-sizing:border-box }
+    html,body { margin:0; min-height:100%; background:var(--bg); color:var(--text);
+      font-family:Arial,"Helvetica Neue",sans-serif; font-synthesis:none }
+    body { min-height:100vh; overflow-x:hidden; background:
+      radial-gradient(circle at 58% 12%,rgba(24,101,210,.2),transparent 32rem),
+      linear-gradient(125deg,#020611 0%,#07152c 55%,#030916 100%) }
+    body:before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.26;
+      background:linear-gradient(115deg,transparent 44%,rgba(55,128,255,.08) 44.2%,transparent 44.5%),
+      linear-gradient(25deg,transparent 70%,rgba(55,128,255,.07) 70.2%,transparent 70.5%) }
+    .shell { min-height:100vh; padding:26px 32px 20px; display:grid;
+      grid-template-rows:auto auto minmax(430px,1fr) auto; gap:18px }
+    header,.footer { display:flex; align-items:center; justify-content:space-between }
+    .brand,.console,.foot-info,.foot-status,.header-actions { display:flex; align-items:center; gap:13px }
+    .mark { width:46px; height:46px; display:grid; place-items:center; border-radius:14px;
+      background:linear-gradient(145deg,#1585ff,#2454d9); box-shadow:0 0 28px #1677ff66;
+      font-size:24px; font-weight:900 }
+    h1 { font-size:22px; margin:0; letter-spacing:.01em }
+    .eyebrow { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.16em;
+      margin-top:4px }
+    .console { padding:10px 14px; border:1px solid var(--line); border-radius:13px;
+      background:rgba(8,20,40,.72) }
+    .console strong { font-size:13px }
+    .lang-switch { display:flex; padding:3px; border:1px solid var(--line); border-radius:10px;
+      background:rgba(8,20,40,.72); margin-right:8px }
+    .lang-switch button { border:0; border-radius:7px; padding:7px 9px; color:var(--muted);
+      background:transparent; font-family:inherit; font-size:10px; font-weight:700; cursor:pointer }
+    .lang-switch button.active { color:white; background:#1978e8; box-shadow:0 0 12px #1978e855 }
+    .utility-switch { margin-right:0 }
+    .lang-switch button.utility { min-width:38px; color:#b8cae3; padding:6px 9px }
+    .lang-switch button.utility:focus { color:white; background:#1978e8; outline:2px solid #75b6ff }
+    .utility svg { display:block; width:17px; height:17px; fill:none; stroke:currentColor;
+      stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; pointer-events:none }
+    .update-button { display:none; border:1px solid #f1bd38; border-radius:10px; padding:9px 13px;
+      color:#ffe59a; background:#f1bd3818; font-family:inherit; font-size:11px;
+      font-weight:750; cursor:pointer; box-shadow:0 0 18px #f1bd3822; white-space:nowrap }
+    .update-button.visible { display:block }
+    .update-button:disabled { opacity:.65; cursor:default }
+    .restart-notice { display:none; align-items:center; gap:9px; max-width:310px;
+      border:1px solid #f1bd3866; border-radius:10px; padding:8px 12px;
+      color:#ffe7a6; background:#f1bd3814; font-size:11px; line-height:1.3 }
+    .restart-notice.visible { display:flex }
+    .restart-notice i { width:8px; height:8px; border-radius:50%; flex:none;
+      background:#f1bd38; box-shadow:0 0 10px #f1bd38 }
+    .readonly-notice { display:none; align-items:center; gap:7px; border:1px solid #52d9ff55;
+      border-radius:10px; padding:8px 11px; color:#a9eaff; background:#52d9ff12;
+      font-size:11px; white-space:nowrap }
+    .readonly-notice.visible { display:flex }
+    .readonly-notice i { width:7px; height:7px; border-radius:50%; background:var(--cyan);
+      box-shadow:0 0 9px var(--cyan) }
+    .dot { width:8px; height:8px; border-radius:50%; background:var(--green);
+      box-shadow:0 0 12px var(--green) }
+    .badges { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px }
+    .badge,.panel { border:1px solid var(--line); background:linear-gradient(145deg,var(--panel),var(--panel2));
+      box-shadow:inset 0 1px rgba(255,255,255,.025),0 18px 50px rgba(0,0,0,.16);
+      backdrop-filter:blur(18px) }
+    .badge { min-height:86px; padding:14px 15px; border-radius:14px; position:relative; overflow:hidden }
+    .badge:after { content:""; position:absolute; right:-20px; bottom:-28px; width:82px; height:82px;
+      border:1px solid rgba(65,139,255,.14); border-radius:50% }
+    .badge label { display:block; color:#a9bad7; font-size:16px; text-transform:uppercase;
+      letter-spacing:.08em }
+    .badge b { display:block; font-size:25px; line-height:1; margin-top:10px;
+      white-space:nowrap; position:relative; z-index:1 }
+    .badge small { display:block; color:#7186a9; font-size:12px; margin-top:5px }
+    .layout { display:grid; grid-template-columns:minmax(520px,1.55fr) minmax(330px,.9fr) minmax(280px,.72fr);
+      gap:14px; min-height:0 }
+    .panel { border-radius:17px; padding:18px; min-width:0; overflow:hidden }
+    .panel-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px }
+    .panel h2 { font-size:16px; margin:0; letter-spacing:.03em }
+    .panel-head span { color:var(--muted); font-size:12px }
+    .table-scroll { height:calc(100% - 48px); overflow:auto; padding-right:4px; scrollbar-width:thin;
+      scrollbar-color:#285a96 transparent }
+    table { width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed }
+    thead { position:sticky; top:0; z-index:2; background:#091a36 }
+    th { color:#8296b8; font-size:11px; text-transform:uppercase; letter-spacing:.08em; text-align:left;
+      padding:0 8px 11px }
+    th.num,td.num { text-align:center; padding-left:4px; padding-right:4px }
+    td { border-top:1px solid rgba(109,151,220,.11); padding:17px 8px; font-size:15px;
+      vertical-align:middle; overflow:hidden }
+    .game { display:block; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:650 }
+    .game small { display:block; color:var(--muted); margin-top:5px; font-size:12px; font-weight:500 }
+    .platform { display:inline-block; padding:3px 6px; border-radius:5px; background:#137cff22;
+      color:#75b6ff; font-size:10px; margin-right:7px }
+    .platform.ps4 { color:#d6a6ff; background:#9b54df26; border:1px solid #b46cff3d }
+    .platform.ps5 { color:#70ddff; background:#178dca26; border:1px solid #38c5ff3d }
+    .panel-tools { display:flex; align-items:center; gap:10px }
+    .scope-switch { display:flex; padding:2px; border:1px solid var(--line); border-radius:8px;
+      background:rgba(5,15,31,.65) }
+    .scope-switch button { border:0; border-radius:6px; padding:6px 9px; color:var(--muted);
+      background:transparent; font-family:inherit; font-size:10px; font-weight:700; cursor:pointer }
+    .scope-switch button.active { color:white; background:#1978e8 }
+    .status { display:inline-flex; align-items:center; gap:6px; color:#adc0df }
+    .status i { width:6px; height:6px; border-radius:50%; background:#6280ad }
+    .status.active { color:var(--green) } .status.active i { background:var(--green); box-shadow:0 0 9px var(--green) }
+    .completion { border:1px solid rgba(102,145,211,.24); border-radius:8px; padding:7px 9px;
+      background:rgba(12,30,58,.65); color:#aebed7; font-family:inherit; font-size:11px;
+      font-weight:600; cursor:pointer; width:100%; max-width:130px; overflow:hidden;
+      text-overflow:ellipsis; white-space:nowrap }
+    .completion:before { content:""; display:inline-block; width:8px; height:8px; border:1px solid #6e87ad;
+      border-radius:2px; margin-right:6px; vertical-align:-1px }
+    .completion.done { color:var(--green); border-color:#43e59b55; background:#43e59b12 }
+    .completion.done:before { content:""; width:0; height:10px; border:0; color:var(--green);
+      font-size:11px; line-height:10px }
+    .analytics { display:grid; grid-template-rows:1.34fr .66fr; gap:14px; min-height:0 }
+    .sub { border:1px solid rgba(101,153,235,.12); border-radius:13px; padding:14px; min-height:0;
+      background:rgba(4,12,27,.34) }
+    .activity-sub { display:flex; flex-direction:column }
+    .activity-charts { flex:1; min-height:0; display:grid; grid-template-rows:1fr 1fr; gap:22px }
+    .sub h3 { font-size:15px; margin:0 0 13px }
+    .chart { height:145px; display:flex; align-items:flex-end; gap:5px; border-bottom:1px solid #24436b;
+      padding:0 3px; position:relative }
+    .bar-wrap { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:6px }
+    .bar { width:min(18px,70%); min-height:2px; border-radius:5px 5px 1px 1px;
+      background:linear-gradient(#54d9ff,#287cff); box-shadow:0 0 10px #2387ff44;
+      display:flex; flex-direction:column; justify-content:flex-end; overflow:hidden }
+    .bar-active { background:linear-gradient(#54d9ff,#287cff) }
+    .bar-pause { background:var(--pause) }
+    .bar-wrap em { font-style:normal; font-size:9px; color:#778cac; height:12px }
+    .chart-group { min-height:0; display:flex; flex-direction:column }
+    .chart-title { display:flex; justify-content:space-between; color:#8296b8; font-size:16px;
+      margin:0 2px 5px }
+    .chart-title b { color:#d9e5f8; font-size:12px; font-weight:650 }
+    .chart-note { color:#647a9d; font-size:14px; margin:0 2px 6px }
+    .days-grid { flex:1; min-height:112px; display:grid; grid-template-columns:repeat(7,1fr);
+      grid-template-rows:repeat(2,1fr); gap:6px }
+    .day-cell { min-width:0; border-radius:8px; border:1px solid rgba(92,145,226,.12);
+      background:rgba(25,85,165,var(--heat)); padding:7px 5px; display:flex; flex-direction:column;
+      justify-content:space-between }
+    .day-cell span { color:#8fa4c5; font-size:16px }
+    .day-cell b { color:#eaf3ff; font-size:12px; white-space:nowrap }
+    .donut-row { display:grid; grid-template-columns:160px 1fr; align-items:center; gap:22px }
+    .donut-canvas { width:152px; height:152px; display:block;
+      filter:drop-shadow(0 0 13px rgba(36,126,255,.25)) }
+    .donut-copy { position:absolute; text-align:center; font-weight:800; font-size:21px; line-height:1.05 }
+    .donut-copy small { display:block; color:var(--muted); font-size:9px; font-weight:600;
+      text-transform:uppercase; letter-spacing:.08em; margin-top:5px }
+    .donut-holder { position:relative; display:grid; place-items:center }
+    .legend p { margin:13px 0; color:#bdcae0; font-size:13px; display:block; position:relative;
+      padding-left:17px }
+    .legend i { width:8px; height:8px; border-radius:50%; background:var(--blue) }
+    .legend i { position:absolute; left:0; top:5px }
+    .legend p:nth-child(2) i { background:var(--pause) }
+    .legend b { display:block; color:var(--text); font-size:14px; margin-top:5px }
+    .legend b small { display:inline; color:var(--muted); font-size:10px; font-weight:500; margin-left:6px }
+    .event-list { display:flex; flex-direction:column; gap:9px }
+    .event { padding:12px; border-radius:11px; background:rgba(5,13,29,.48);
+      border:1px solid rgba(105,151,224,.11) }
+    .event-top { display:flex; justify-content:space-between; gap:8px; font-size:13px }
+    .event-top b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+    .event time { color:var(--muted); flex:none }
+    .event p { color:#99aac7; font-size:12px; line-height:1.45; margin:7px 0 0 }
+    .event.good { border-left:2px solid var(--green) }
+    .event.info { border-left:2px solid var(--blue) }
+    .event.error { border-left:2px solid #ff8a42 }
+    .event.critical { border-left:2px solid #ff4f6d; background:rgba(70,12,29,.28) }
+    .empty { min-height:150px; display:grid; place-items:center; text-align:center; color:var(--muted);
+      font-size:11px; line-height:1.6 }
+    .footer { border-top:1px solid var(--line); padding-top:14px; color:var(--muted); font-size:14px }
+    .foot-info span,.foot-status span { padding-right:13px; border-right:1px solid var(--line) }
+    .foot-info span:last-child,.foot-status span:last-child { border:0; padding:0 }
+    .accent { color:#82bdff }
+    .modal { position:fixed; inset:0; z-index:20; display:grid; place-items:center;
+      padding:24px; background:rgba(1,5,13,.82); backdrop-filter:blur(12px) }
+    .modal.hidden { display:none }
+    .modal.hidden:target { display:grid }
+    .modal.page-mode { position:static; inset:auto; z-index:auto; min-height:100vh;
+      padding:32px; background:
+      radial-gradient(circle at 58% 12%,rgba(24,101,210,.2),transparent 32rem),
+      linear-gradient(125deg,#020611 0%,#07152c 55%,#030916 100%);
+      backdrop-filter:none; align-items:start }
+    .modal.page-mode .modal-card { width:min(760px,100%); margin:0 auto }
+    .modal-card { width:min(520px,100%); padding:24px; border-radius:18px; border:1px solid #3b72bd55;
+      background:linear-gradient(145deg,#0a1b37,#071126); box-shadow:0 30px 90px #000a }
+    .modal-card h2 { margin:0; font-size:21px }
+    .modal-card>p { color:#8ea2c3; font-size:13px; line-height:1.5; margin:8px 0 20px }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px }
+    .field { display:block; color:#9db0cd; font-size:12px }
+    .field.wide { grid-column:1/-1 }
+    .field input { width:100%; margin-top:7px; padding:12px; border:1px solid #4773aa55;
+      border-radius:10px; background:#040d1e; color:white; font-family:inherit; font-size:14px; outline:none }
+    .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px }
+    .modal-actions button,.modal-actions .modal-close { border:1px solid var(--line); border-radius:9px; padding:10px 16px;
+      background:#0a1c38; color:#b9c8df; font-family:inherit; font-size:12px; font-weight:700;
+      cursor:pointer; text-decoration:none }
+    .modal-actions .primary { color:white; background:#1978e8; border-color:#3991ff }
+    .settings-error { color:#ff889e; font-size:11px; min-height:16px; margin-top:12px }
+    .backup-card { width:min(720px,100%); max-height:min(760px,90vh); display:flex; flex-direction:column }
+    .backup-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px;
+      padding:14px; border:1px solid var(--line); border-radius:12px; background:#061126 }
+    .backup-toolbar p { margin:0; color:#a7b8d2; font-size:12px; line-height:1.5 }
+    .backup-toolbar code { display:block; color:#6f89ae; font-size:10px; margin-top:3px }
+    .backup-button { flex:none; border:1px solid #3991ff; border-radius:9px; padding:11px 15px;
+      background:#1978e8; color:white; font:700 12px inherit; cursor:pointer }
+    .backup-button:disabled,.backup-action:disabled { opacity:.45; cursor:default }
+    .backup-progress { display:none; align-items:center; gap:11px; margin-top:12px; padding:12px;
+      border:1px solid #287bd855; border-radius:10px; background:#1677ff12; color:#bdd5f7; font-size:12px }
+    .backup-progress.visible { display:flex }
+    .backup-progress.success { border-color:#43e59b55; background:#43e59b12; color:#8ff0c1 }
+    .backup-progress.error { border-color:#ff607155; background:#ff607112; color:#ff9caa }
+    .spinner { width:16px; height:16px; border:2px solid #5e85b9; border-top-color:#52d9ff;
+      border-radius:50%; animation:spin .8s linear infinite; flex:none }
+    .success .spinner,.error .spinner { animation:none; border:0; width:auto; height:auto }
+    .success .spinner:after { content:"✓"; font-weight:900 }.error .spinner:after { content:"!"; font-weight:900 }
+    @keyframes spin { to { transform:rotate(360deg) } }
+    .backup-list { overflow:auto; margin-top:14px; display:flex; flex-direction:column; gap:9px; min-height:100px }
+    .backup-item { display:grid; grid-template-columns:1fr auto; gap:12px; padding:13px;
+      border:1px solid var(--line); border-radius:11px; background:#061126 }
+    .backup-item.invalid { border-color:#ff607155 }
+    .backup-title { display:flex; align-items:center; gap:8px; font-size:13px }
+    .backup-title span { padding:3px 6px; border-radius:5px; color:#79caff; background:#1688d622;
+      font-size:9px; text-transform:uppercase }
+    .backup-meta { color:#8296b8; font-size:11px; margin-top:6px; line-height:1.5 }
+    .backup-actions { display:flex; align-items:center; gap:7px }
+    .backup-action { border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+      background:#0b203f; color:#b8c9e2; font:650 10px inherit; cursor:pointer }
+    .backup-action.restore { color:#7fc3ff }.backup-action.delete { color:#ff96a7 }
+    .backup-empty { padding:24px; text-align:center; color:#7f94b5; font-size:12px }
+    @media(max-width:1200px) {
+      .badges { grid-template-columns:repeat(4,1fr) }
+      .layout { grid-template-columns:1.35fr .9fr } .events { grid-column:1/-1 }
+      .event-list { display:grid; grid-template-columns:repeat(3,1fr) }
+    }
+    @media(max-width:800px) {
+      .shell { padding:18px; grid-template-rows:auto auto auto auto }
+      header { align-items:flex-start; gap:12px }
+      .header-actions { flex:1; flex-wrap:wrap; justify-content:flex-end; gap:7px }
+      .badges { grid-template-columns:repeat(2,1fr) } .layout { grid-template-columns:1fr }
+      .events { grid-column:auto } .event-list { grid-template-columns:1fr }
+      .console { display:none }
+      .donut-row { grid-template-columns:1fr; justify-items:center }
+      .legend { width:100% }
+      .backup-toolbar { flex-direction:column; align-items:stretch }
+      .footer { align-items:flex-start; gap:12px; flex-direction:column }
+      .foot-info { flex-wrap:wrap; row-gap:8px }
+      .foot-status { display:none }
+    }
+    @media(max-width:480px) {
+      .shell { padding:12px; gap:12px }
+      .brand { gap:9px }
+      .mark { width:38px; height:38px; border-radius:11px; font-size:20px }
+      h1 { font-size:18px }
+      .brand .eyebrow { font-size:9px }
+      .header-actions { gap:5px }
+      .readonly-notice { font-size:10px; padding:7px 9px }
+      .badges { gap:7px }
+      .badge { min-height:76px; padding:11px 10px }
+      .badge label { font-size:12px }
+      .badge b { font-size:20px; margin-top:8px }
+      .badge small { font-size:10px }
+      .panel { padding:12px; border-radius:14px }
+      .panel-head { gap:8px; flex-wrap:wrap }
+      .panel h2 { font-size:14px }
+      .panel-head span { font-size:10px }
+      .activity-charts { gap:16px }
+      .chart-title { font-size:13px }
+      .chart-note { font-size:11px }
+      .day-cell { padding:5px 3px }
+      .day-cell span { font-size:11px }
+      .day-cell b { font-size:10px }
+      .table-scroll { overflow-x:auto }
+      table { min-width:580px }
+      .foot-info { font-size:11px }
+    }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="mark">△</div>
+        <div><h1 data-i18n="title">Игровая активность</h1><div class="eyebrow">Personal PlayStation tracker</div></div>
+      </div>
+      <div class="header-actions">
+        <div class="restart-notice" id="restartNotice"><i></i><span id="restartNoticeText"></span></div>
+        <div class="readonly-notice" id="readonlyNotice"><i></i><span id="readonlyNoticeText"></span></div>
+        <button type="button" class="update-button" id="applyUpdate">Доступно обновление</button>
+        <div class="lang-switch utility-switch" aria-label="Dashboard tools">
+          <button type="button" class="utility" id="openBackups" data-lang="backup" aria-label="Backups" title="Backups">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg>
+          </button>
+          <button type="button" class="utility" id="openSettings" data-lang="settings" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>
+          </button>
+        </div>
+        <div class="lang-switch" aria-label="Language">
+          <button type="button" data-lang="ru">RU</button>
+          <button type="button" data-lang="en">EN</button>
+        </div>
+        <div class="console"><span class="dot"></span><div><strong data-i18n="trackerActive">Трекер активен</strong><div class="eyebrow">PS5 · FW <span id="headerFirmware">—</span></div></div></div>
+      </div>
+    </header>
+
+    <section class="badges">
+      <article class="badge"><label data-i18n="games">Игры</label><b id="games">—</b><small>PS4 + PS5</small></article>
+      <article class="badge"><label data-i18n="allTime">Всё время</label><b id="activeTime">—</b><small data-i18n="purePlay">чистая игра</small></article>
+      <article class="badge"><label data-i18n="today">Сегодня</label><b id="todayTime">—</b><small data-i18n="activeTime">активное время</small></article>
+      <article class="badge"><label data-i18n="sevenDays">7 дней</label><b id="weekTime">—</b><small data-i18n="activeTime">активное время</small></article>
+      <article class="badge"><label data-i18n="sessions">Сессии</label><b id="sessions">—</b><small data-i18n="allLaunches">все запуски</small></article>
+      <article class="badge"><label data-i18n="averageSession">Средняя сессия</label><b id="averageSession">—</b><small data-i18n="activePart">активная часть</small></article>
+      <article class="badge"><label data-i18n="completed">Пройдено</label><b id="completed">—</b><small data-i18n="marked">с отметкой</small></article>
+    </section>
+
+    <section class="layout">
+      <article class="panel">
+        <div class="panel-head"><div><h2 data-i18n="gameStats">Статистика игр</h2><span data-i18n="sortedByTime">Сортировка по игровому времени</span></div><div class="panel-tools"><div class="scope-switch"><button type="button" data-scope="all">Всё время</button><button type="button" data-scope="today">Сегодня</button></div><span id="gameCount">—</span></div></div>
+        <div class="table-scroll">
+          <table>
+            <colgroup><col style="width:44%"><col style="width:13%"><col style="width:9%"><col style="width:15%"><col style="width:19%"></colgroup>
+            <thead><tr><th data-i18n="game">Игра</th><th class="num" data-i18n="time">Время</th><th class="num" data-i18n="sessions">Сессии</th><th class="num" data-i18n="lastLaunch">Последний запуск</th><th class="num" data-i18n="status">Статус</th></tr></thead>
+            <tbody id="gamesTable"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="panel analytics">
+        <section class="sub activity-sub">
+          <div class="panel-head"><div><h2 data-i18n="activity">Активность</h2><span data-i18n="twoScales">Два масштаба времени</span></div></div>
+          <div class="activity-charts">
+            <div class="chart-group">
+              <div class="chart-title"><span data-i18n="todayHourly">Сегодня — по часам</span><b id="todayChartTotal">—</b></div>
+              <div class="chart-note" data-i18n="hourLegend">Синий — игра, жёлтый — Home и пауза</div>
+              <div class="chart" id="todayChart"></div>
+            </div>
+            <div class="chart-group">
+              <div class="chart-title"><span data-i18n="fourteenDays">Последние 14 дней — календарь</span><b id="periodTotal">—</b></div>
+              <div class="chart-note" data-i18n="calendarNote">В каждой ячейке — чистое игровое время за день</div>
+              <div class="days-grid" id="daysChart"></div>
+            </div>
+          </div>
+        </section>
+        <section class="sub">
+          <h3 data-i18n="activeAndPause">Активное время и пауза</h3>
+          <div class="donut-row">
+            <div class="donut-holder"><canvas class="donut-canvas" id="donut" width="304" height="304"></canvas><div class="donut-copy" id="donutCopy">—<small>в игре</small></div></div>
+            <div class="legend">
+              <p><i></i><span data-i18n="activeTime">Активное время</span><b id="activeLegend">—</b></p>
+              <p><i></i><span data-i18n="pauseTime">Время на паузе</span><b id="pauseLegend">—</b></p>
+            </div>
+          </div>
+        </section>
+      </article>
+
+      <article class="panel events">
+        <div class="panel-head"><div><h2 data-i18n="state">Состояние</h2><span data-i18n="recentEvents">Текущая игровая активность</span></div><span data-i18n="liveStatus">сейчас</span></div>
+        <div class="event-list" id="events"></div>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.40.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
+      <div class="foot-status"><span id="updated">Обновлено: —</span><span><i class="dot" style="display:inline-block;margin-right:7px"></i><span data-i18n="localData">локальные данные</span></span></div>
+    </footer>
+  </main>
+  <section class="modal hidden" id="settingsModal" style="display:none">
+    <form class="modal-card" id="settingsForm">
+      <h2 id="settingsTitle">Настройка трекера</h2>
+      <p id="settingsIntro">Эти значения Playlog использует для всех календарных расчётов.</p>
+      <div class="form-grid">
+        <label class="field"><span id="offsetLabel">Смещение от UTC, минут</span><input id="settingsOffset" type="number" min="-720" max="840" step="15" required></label>
+        <label class="field"><span id="firmwareLabel">Прошивка</span><input id="settingsFirmware" type="number" min="0.01" max="99.99" step="0.01" inputmode="decimal" placeholder="4.50" required></label>
+        <label class="field wide"><span id="timezoneLabel">Название часового пояса</span><input id="settingsTimezone" maxlength="63" placeholder="Europe/Moscow" required></label>
+      </div>
+      <div class="settings-error" id="settingsError"></div>
+      <div class="modal-actions"><a class="modal-close" href="#" id="cancelSettings">Отмена</a><button type="submit" class="primary" id="saveSettings">Сохранить</button></div>
+    </form>
+  </section>
+  <section class="modal hidden" id="backupModal" style="display:none">
+    <div class="modal-card backup-card">
+      <h2 id="backupTitle">Резервные копии</h2>
+      <p id="backupIntro">Сохраняются игровая история, отметки прохождения и настройки.</p>
+      <div class="backup-toolbar">
+        <div><p id="backupHelp">Нажмите «Создать копию». Текущая сессия будет зафиксирована, данные скопированы и проверены.</p><code>/data/ps5-activity/backups</code></div>
+        <button type="button" class="backup-button" id="createBackup">Создать копию</button>
+      </div>
+      <div class="backup-progress" id="backupProgress"><span class="spinner"></span><span id="backupProgressText"></span></div>
+      <div class="backup-list" id="backupList"></div>
+      <div class="modal-actions"><a class="modal-close" href="#" id="closeBackups">Закрыть</a></div>
+    </div>
+  </section>
+  <script>
+    const $ = id => document.getElementById(id);
+    const each = (selector,callback) =>
+      Array.prototype.forEach.call(document.querySelectorAll(selector),callback);
+    const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    const messages = {
+      ru:{title:"Игровая активность",trackerActive:"Трекер активен",games:"Игры",allTime:"Всё время",purePlay:"чистая игра",today:"Сегодня",activeTime:"Активное время",sevenDays:"7 дней",sessions:"Сессии",allLaunches:"все запуски",averageSession:"Средняя сессия",activePart:"активная часть",completed:"Пройдено",marked:"с отметкой",gameStats:"Статистика игр",sortedByTime:"Сортировка по игровому времени",game:"Игра",time:"Время",lastLaunch:"Последний запуск",status:"Статус",activity:"Активность",twoScales:"Два масштаба времени",todayHourly:"Сегодня — по часам",hourLegend:"Синий — игра, жёлтый — Home и пауза",fourteenDays:"Последние 14 дней — календарь",calendarNote:"В каждой ячейке — чистое игровое время за день",activeAndPause:"Активное время и пауза",pauseTime:"Время на паузе",state:"Состояние",recentEvents:"Текущая игровая активность",liveStatus:"сейчас",markComplete:"Отметить",undoComplete:"✓ Пройдена",scroll:"прокрутка",noGames:"Нет игровых данных",inGame:"в игре",ofTime:"времени",nowActive:"Игра запущена",nowPaused:"На Home или паузе",noCurrentGame:"Игра сейчас не запущена",now:"сейчас",updated:"Обновлено",localData:"локальные данные",readOnlyLan:"Только просмотр по LAN"},
+      en:{title:"Gaming activity",trackerActive:"Tracker active",games:"Games",allTime:"All time",purePlay:"active play",today:"Today",activeTime:"Active time",sevenDays:"7 days",sessions:"Sessions",allLaunches:"all launches",averageSession:"Average session",activePart:"active portion",completed:"Completed",marked:"marked games",gameStats:"Game statistics",sortedByTime:"Sorted by play time",game:"Game",time:"Time",lastLaunch:"Last launch",status:"Status",activity:"Activity",twoScales:"Two time scales",todayHourly:"Today — by hour",hourLegend:"Blue — playing, yellow — Home and pause",fourteenDays:"Last 14 days — calendar",calendarNote:"Each cell shows active play time for that day",activeAndPause:"Active time and pause",pauseTime:"Pause time",state:"Status",recentEvents:"Current gaming activity",liveStatus:"now",markComplete:"Mark complete",undoComplete:"✓ Completed ↩",scroll:"scroll",noGames:"No game data",inGame:"playing",ofTime:"of time",nowActive:"Game running",nowPaused:"On Home or paused",noCurrentGame:"No game is currently running",now:"now",updated:"Updated",localData:"local data",readOnlyLan:"LAN read-only"}
+    };
+    let lang = localStorage.getItem("ps5-activity-language") || (navigator.language.toLowerCase().startsWith("ru") ? "ru" : "en");
+    let currentData = null;
+    let backupData = [];
+    let backupBusy = false;
+    let gameScope = "all";
+    let settingsPrompted = false;
+    let updateData = null;
+    let lanReadOnly = true;
+    const pageIsLoopback = () => {
+      const host=(location.hostname||"").replace(/^\[|\]$/g,"").toLowerCase();
+      return host==="127.0.0.1" || host==="localhost" || host==="::1";
+    };
+    const t = key => messages[lang][key] ?? key;
+    const locale = () => lang === "ru" ? "ru-RU" : "en-US";
+    const duration = seconds => {
+      const s = Math.max(0, Number(seconds) || 0), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+      return lang === "ru" ? (h ? `${h} ч ${m} мин` : `${m} мин`) : (h ? `${h}h ${m}m` : `${m}m`);
+    };
+    const shortDate = value => {
+      if(!value) return "—";
+      const match=String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if(!match) return "—";
+      const months=lang==="ru"
+        ? ["янв.","февр.","мар.","апр.","мая","июн.","июл.","авг.","сент.","окт.","нояб.","дек."]
+        : ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return lang==="ru" ? `${match[3]} ${months[Number(match[2])-1]}` : `${months[Number(match[2])-1]} ${match[3]}`;
+    };
+    const time = value => {
+      if(!value) return "—";
+      const match=String(value).match(/T(\d{2}):(\d{2})/);
+      return match ? `${match[1]}:${match[2]}` : "—";
+    };
+    const isCompleted = game => Boolean(game.completed_at);
+    function openModal(id) {
+      const modal=$(id);
+      document.querySelector(".shell").style.display="none";
+      modal.classList.remove("hidden");
+      modal.classList.add("page-mode");
+      modal.style.position="static";
+      modal.style.display="block";
+      modal.style.visibility="visible";
+      modal.style.opacity="1";
+      modal.style.zIndex="auto";
+      window.scrollTo(0,0);
+    }
+    function closeModal(id) {
+      const modal=$(id);
+      modal.style.display="none";
+      modal.style.visibility="hidden";
+      modal.classList.remove("page-mode");
+      modal.classList.add("hidden");
+      document.querySelector(".shell").style.display="grid";
+      window.scrollTo(0,0);
+      location.hash="";
+    }
+    function applyLanguage() {
+      document.documentElement.lang = lang;
+      document.title = "Playlog";
+      each("[data-i18n]",el => el.textContent=t(el.dataset.i18n));
+      each("[data-lang]",el => {
+        if(el.dataset.lang==="ru" || el.dataset.lang==="en") {
+          el.classList.toggle("active",el.dataset.lang===lang);
+        }
+      });
+      document.querySelector('[data-scope="all"]').textContent=lang==="ru"?"Всё время":"All time";
+      document.querySelector('[data-scope="today"]').textContent=lang==="ru"?"Сегодня":"Today";
+      $("settingsTitle").textContent=lang==="ru"?"Настройка трекера":"Tracker setup";
+      $("settingsIntro").textContent=lang==="ru"
+        ?"Эти значения Playlog использует для всех календарных расчётов."
+        :"Playlog uses these values for every calendar calculation.";
+      $("offsetLabel").textContent=lang==="ru"?"Смещение от UTC, минут":"UTC offset, minutes";
+      $("firmwareLabel").textContent=lang==="ru"?"Прошивка":"Firmware";
+      $("timezoneLabel").textContent=lang==="ru"?"Название часового пояса":"Timezone name";
+      $("cancelSettings").textContent=lang==="ru"?"Отмена":"Cancel";
+      $("saveSettings").textContent=lang==="ru"?"Сохранить":"Save";
+      $("backupTitle").textContent=lang==="ru"?"Резервные копии":"Backups";
+      $("backupIntro").textContent=lang==="ru"
+        ?"Сохраняются игровая история, отметки прохождения и настройки."
+        :"Play history, completion marks, and settings are preserved.";
+      $("backupHelp").textContent=lang==="ru"
+        ?"Нажмите «Создать копию». Текущая сессия будет зафиксирована, данные скопированы и проверены."
+        :"Select “Create backup”. The current session will be checkpointed, copied, and verified.";
+      $("openBackups").title=lang==="ru"?"Резервные копии":"Backups";
+      $("openBackups").setAttribute("aria-label",$("openBackups").title);
+      $("openSettings").title=lang==="ru"?"Настройки":"Settings";
+      $("openSettings").setAttribute("aria-label",$("openSettings").title);
+      $("createBackup").textContent=lang==="ru"?"Создать копию":"Create backup";
+      $("closeBackups").textContent=lang==="ru"?"Закрыть":"Close";
+      $("readonlyNoticeText").textContent=t("readOnlyLan");
+      $("readonlyNotice").classList.toggle("visible",lanReadOnly);
+      if(updateData && updateData.available) {
+        $("applyUpdate").textContent=(lang==="ru"?"Обновить до ":"Update to ")
+          +(updateData.package_version||"");
+      }
+      if(updateData && updateData.pending_restart) {
+        $("restartNoticeText").textContent=lang==="ru"
+          ? `Playlog ${updateData.tracker_version} установлен — требуется перезапуск`
+          : `Playlog ${updateData.tracker_version} installed — restart required`;
+      }
+      renderBackups();
+    }
+    async function checkUpdate() {
+      try {
+        const response=await fetch(`/api/update/status?t=${Date.now()}`,{cache:"no-store"});
+        if(!response.ok) return;
+        updateData=await response.json();
+        const pendingRestart=Boolean(updateData.pending_restart)
+          || (!updateData.available && updateData.tracker_version
+              && updateData.installed_tracker
+              && updateData.tracker_version!==updateData.installed_tracker);
+        updateData.pending_restart=pendingRestart;
+        $("applyUpdate").classList.toggle("visible",Boolean(updateData.available) && !lanReadOnly);
+        $("restartNotice").classList.toggle("visible",pendingRestart);
+        if(updateData.available) {
+          $("applyUpdate").textContent=(lang==="ru"?"Обновить до ":"Update to ")
+            +(updateData.package_version||"");
+        }
+        if(updateData.pending_restart) {
+          $("restartNoticeText").textContent=lang==="ru"
+            ? `Playlog ${updateData.tracker_version} установлен — требуется перезапуск`
+            : `Playlog ${updateData.tracker_version} installed — restart required`;
+        }
+      } catch(error) {}
+    }
+    function drawDonut(percent) {
+      const canvas=$("donut"),ctx=canvas.getContext("2d"),center=canvas.width/2;
+      const start=-Math.PI/2,end=start+Math.PI*2*Math.max(0,Math.min(100,percent))/100;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.lineWidth=42; ctx.lineCap="butt";
+      ctx.beginPath(); ctx.arc(center,center,112,0,Math.PI*2);
+      ctx.strokeStyle="#f1bd38"; ctx.stroke();
+      if(percent>0) {
+        ctx.beginPath(); ctx.arc(center,center,112,start,end);
+        ctx.strokeStyle="#2387ff"; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(center,center,88,0,Math.PI*2);
+      ctx.strokeStyle="rgba(110,158,235,.16)"; ctx.lineWidth=2; ctx.stroke();
+    }
+    function applyAccessMode() {
+      $("readonlyNotice").classList.toggle("visible",lanReadOnly);
+      $("openBackups").disabled=lanReadOnly;
+      $("openSettings").disabled=lanReadOnly;
+      $("applyUpdate").disabled=lanReadOnly;
+      $("createBackup").disabled=lanReadOnly;
+      $("saveSettings").disabled=lanReadOnly;
+      if(lanReadOnly) {
+        $("applyUpdate").classList.remove("visible");
+        if($("settingsModal").style.display!=="none") closeModal("settingsModal");
+        if($("backupModal").style.display!=="none") closeModal("backupModal");
+      }
+    }
+    async function loadAccess() {
+      try {
+        const response=await fetch("/api/access?t="+Date.now(),{cache:"no-store"});
+        if(!response.ok) throw Error(response.status);
+        const access=await response.json();
+        lanReadOnly=!pageIsLoopback() && Boolean(access.read_only);
+      } catch(error) {
+        /* A pre-1.46 runtime may not expose /api/access yet.  The Media tile
+           always opens the loopback URL, so keep console controls usable while
+           retaining read-only mode for every non-loopback page. */
+        lanReadOnly=!pageIsLoopback();
+      }
+      applyAccessMode();
+      applyLanguage();
+    }
+    function showSettings(data) {
+      const source=data || currentData || {};
+      $("settingsOffset").value=source.timezone_offset_minutes ?? 180;
+      $("settingsTimezone").value=source.timezone && source.timezone!=="System" ? source.timezone : "Europe/Moscow";
+      $("settingsFirmware").value=source.system?.firmware && source.system.firmware!=="unknown" ? source.system.firmware : "";
+      $("settingsError").textContent="";
+      openModal("settingsModal");
+    }
+
+    const fileSize = bytes => {
+      const value=Number(bytes)||0;
+      return value < 1024*1024 ? `${Math.max(1,Math.round(value/1024))} KB` : `${(value/1024/1024).toFixed(1)} MB`;
+    };
+    function setBackupStatus(kind,text) {
+      const box=$("backupProgress");
+      box.className=`backup-progress visible ${kind||""}`;
+      $("backupProgressText").textContent=text;
+    }
+    function setBackupBusy(value) {
+      backupBusy=value;
+      $("createBackup").disabled=value;
+      $("closeBackups").disabled=value;
+      each(".backup-action",button=>button.disabled=value);
+    }
+    function renderBackups() {
+      if(!$("backupList")) return;
+      const sorted=[...backupData].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+      $("backupList").innerHTML=sorted.map(item=>{
+        const when=`${shortDate(item.created_at)}, ${time(item.created_at)}`;
+        const safe=Boolean(item.valid);
+        const automatic=item.kind==="before_restore";
+        const kind=automatic
+          ? (lang==="ru"?"до восстановления":"before restore")
+          : (lang==="ru"?"ручная":"manual");
+        const details=safe
+          ? (String(item.games||0)+" "+(lang==="ru"?"игр":"games")+" · "
+             +String(item.sessions||0)+" "+(lang==="ru"?"сессий":"sessions")
+             +" · "+duration(item.active_seconds)+" · "
+             +fileSize(item.size_bytes)+" · CRC OK")
+          : (lang==="ru"
+             ?"Копия повреждена и недоступна для восстановления"
+             :"Backup is damaged and cannot be restored");
+        const restore=safe
+          ? ('<button class="backup-action restore" data-backup-restore="'
+             +esc(item.id)+'">'+(lang==="ru"?"Восстановить":"Restore")
+             +'</button>')
+          : "";
+        return '<div class="backup-item '+(safe?"":"invalid")+'">'
+          +'<div><div class="backup-title"><b>'+esc(when)+'</b><span>'
+          +kind+'</span></div><div class="backup-meta">'+details+'</div></div>'
+          +'<div class="backup-actions">'+restore
+          +'<button class="backup-action delete" data-backup-delete="'
+          +esc(item.id)+'">'+(lang==="ru"?"Удалить":"Delete")
+          +'</button></div></div>';
+      }).join("") || `<div class="backup-empty">${lang==="ru"?"Копий пока нет. Создайте первую — она появится здесь после проверки.":"No backups yet. Create one and it will appear here after verification."}</div>`;
+      setBackupBusy(backupBusy);
+    }
+    async function loadBackups() {
+      const response=await fetch(`/backups.json?t=${Date.now()}`,{cache:"no-store"});
+      if(!response.ok) throw Error(`HTTP ${response.status}`);
+      backupData=(await response.json()).backups||[];
+      renderBackups();
+    }
+    function showBackups() {
+      openModal("backupModal");
+      setBackupStatus("",lang==="ru"?"Загружаем список копий…":"Loading backups…");
+      loadBackups().then(()=>{
+        $("backupProgress").className="backup-progress";
+      }).catch(error=>{
+        setBackupStatus("error",(lang==="ru"?"Не удалось получить список: ":"Could not load backups: ")+error.message);
+      });
+    }
+    async function backupRequest(url,starting,working,success) {
+      setBackupBusy(true);
+      setBackupStatus("",starting);
+      const timer=setTimeout(()=>setBackupStatus("",working),650);
+      try {
+        const response=await fetch(url,{method:"POST",cache:"no-store"});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok || !result.ok) throw Error(result.error||`HTTP ${response.status}`);
+        clearTimeout(timer);
+        await loadBackups();
+        if(url.indexOf("/restore") !== -1) {
+          currentData=await loadData();
+          render(currentData);
+        }
+        setBackupStatus("success",success);
+      } catch(error) {
+        clearTimeout(timer);
+        setBackupStatus("error",(lang==="ru"?"Операция не завершена: ":"Operation failed: ")+error.message);
+      } finally {
+        setBackupBusy(false);
+      }
+    }
+
+    function render(data) {
+      const totals = data.totals || {}, allGames = [...(data.games || [])];
+      const games = allGames.filter(g=>gameScope==="all" || Number(g.today_active_seconds)>0)
+        .sort((a,b)=>gameScope==="today"
+          ? (b.today_active_seconds||0)-(a.today_active_seconds||0)
+          : (b.active_seconds||0)-(a.active_seconds||0));
+      $("firmware").textContent=data.system?.firmware || "—";
+      $("headerFirmware").textContent=data.system?.firmware || "—";
+      $("trackerVersion").textContent=data.system?.tracker_version || "—";
+      $("timezoneName").textContent=data.timezone || "—";
+      $("dashboardHost").textContent=data.system?.console_ip || location.hostname || "—";
+      if(!lanReadOnly && !settingsPrompted && (data.timezone_source!=="config" || data.system?.firmware==="unknown")) {
+        settingsPrompted=true;
+        showSettings(data);
+      }
+      $("games").textContent = totals.games ?? allGames.length;
+      $("activeTime").textContent = duration(totals.active_seconds);
+      const today = data.periods?.today || {}, week = data.periods?.week || {};
+      $("todayTime").textContent = duration(today.active_seconds);
+      $("weekTime").textContent = duration(week.active_seconds);
+      $("sessions").textContent = totals.sessions ?? 0;
+      $("averageSession").textContent = duration((totals.active_seconds || 0) / Math.max(1, totals.sessions || 0));
+      $("completed").textContent = allGames.filter(isCompleted).length;
+      $("gameCount").textContent = `${games.length} ${lang==="ru"?"игр":"games"}${games.length > 9 ? ` · ${t("scroll")}` : ""}`;
+      $("gamesTable").innerHTML = games.map(g => {
+        const done = isCompleted(g);
+        const scopedTime=gameScope==="today"?g.today_active_seconds:g.active_seconds;
+        const scopedSessions=gameScope==="today"?g.today_session_count:g.session_count;
+        return `<tr><td><div class="game"><span class="platform ${esc((g.platform||"").toLowerCase())}">${esc(g.platform || "—")}</span>${esc(g.name || g.title_id)}<small>${esc(g.title_id)}</small></div></td>
+          <td class="num">${duration(scopedTime)}</td><td class="num">${scopedSessions || 0}</td><td class="num">${shortDate(g.last_played_at_local || g.last_played_at)}</td>
+          <td class="num"><button type="button" class="completion ${done?"done":""}" data-complete="${esc(g.title_id)}">${done?t("undoComplete"):t("markComplete")}</button></td></tr>`;
+      }).join("") || `<tr><td colspan="5">${t("noGames")}</td></tr>`;
+
+      each("[data-complete]",button => button.disabled=lanReadOnly);
+      const rawDays = (data.days || []).slice(-14);
+      const dates = rawDays.map(day => day.date);
+      const values = rawDays.map(day => day.active_seconds || 0), max = Math.max(...values,1);
+      $("daysChart").innerHTML = dates.map((date,i) => {
+        const weekday = new Intl.DateTimeFormat(locale(),{weekday:"short"}).format(new Date(`${date}T12:00:00`));
+        const heat = .05 + values[i]/max*.5;
+        return `<div class="day-cell" style="--heat:${heat}" title="${esc(date)} · ${duration(values[i])}">
+          <span>${esc(weekday)} · ${date.slice(8)}</span>${values[i] > 0 ? `<b>${duration(values[i])}</b>` : ""}</div>`;
+      }).join("");
+      $("periodTotal").textContent = duration(values.reduce((a,b)=>a+b,0));
+      const hours = today.series || [], hourMax = Math.max(...hours.map(x => (x.active_seconds||0)+(x.paused_seconds||0)),1);
+      $("todayChart").innerHTML = hours.map((x,i) => {
+        const activeHour=x.active_seconds||0, pauseHour=x.paused_seconds||0, value=activeHour+pauseHour;
+        const activePart=value?activeHour/value*100:0, pausePart=value?pauseHour/value*100:0;
+        return `<div class="bar-wrap" title="${esc(x.label)}:00 · ${duration(value)}">
+          <div class="bar" style="height:${Math.max(2,value/hourMax*118)}px"><span class="bar-pause" style="height:${pausePart}%"></span><span class="bar-active" style="height:${activePart}%"></span></div>
+          <em>${i%4===0?esc(x.label):""}</em></div>`;
+      }).join("");
+      $("todayChartTotal").textContent = duration(today.active_seconds);
+
+      const active = Number(totals.active_seconds)||0, paused = Number(totals.paused_seconds)||0, all = active + paused;
+      const activePct = all ? active/all*100 : 100;
+      drawDonut(activePct);
+      $("donutCopy").innerHTML = `${activePct.toFixed(0)}%<small>${t("inGame")}</small>`;
+      $("activeLegend").innerHTML = `${duration(active)}<small>${activePct.toFixed(0)}% ${t("ofTime")}</small>`;
+      $("pauseLegend").innerHTML = `${duration(paused)}<small>${(100-activePct).toFixed(0)}% ${t("ofTime")}</small>`;
+
+      const current = data.health?.current_activity;
+      const currentTitle=current
+        ? (current.state==="paused" ? t("nowPaused") : t("nowActive"))
+        : t("noCurrentGame");
+      const currentBody=current ? (current.name || current.title_id) : t("trackerActive");
+      $("events").innerHTML = `<div class="event good"><div class="event-top"><b>${esc(currentTitle)}</b><time>${esc(t("now"))}</time></div><p>${esc(currentBody)}</p></div>`;
+      const generated=data.generated_at_local || data.generated_at;
+      $("updated").textContent = `${t("updated")}: ${shortDate(generated)}, ${time(generated)}`;
+    }
+
+    each("[data-lang]",button => button.addEventListener("click",() => {
+      if(button.dataset.lang==="settings") {
+        showSettings(currentData);
+        return;
+      }
+      if(button.dataset.lang==="backup") {
+        showBackups();
+        return;
+      }
+      lang=button.dataset.lang; localStorage.setItem("ps5-activity-language",lang); applyLanguage();
+      if(currentData) render(currentData);
+    }));
+    each("[data-scope]",button=>button.addEventListener("click",()=>{
+      gameScope=button.dataset.scope;
+      each("[data-scope]",item=>item.classList.toggle("active",item.dataset.scope===gameScope));
+      if(currentData) render(currentData);
+    }));
+    each("[data-scope]",item=>item.classList.toggle("active",item.dataset.scope===gameScope));
+    $("cancelSettings").addEventListener("click",event=>{
+      event.preventDefault();
+      closeModal("settingsModal");
+    });
+    $("closeBackups").addEventListener("click",event=>{
+      event.preventDefault();
+      if(!backupBusy) closeModal("backupModal");
+    });
+    $("createBackup").addEventListener("click",()=>backupRequest(
+      "/api/backups/create",
+      lang==="ru"?"Фиксируем текущую игровую сессию…":"Checkpointing the current game session…",
+      lang==="ru"?"Копируем файлы и проверяем CRC…":"Copying files and verifying CRC…",
+      lang==="ru"?"Готово. Резервная копия создана и проверена.":"Done. The backup was created and verified."
+    ));
+    $("applyUpdate").addEventListener("click",async()=>{
+      if(!updateData || !updateData.available) return;
+      const message=lang==="ru"
+        ?"Установить вложенное обновление Playlog? Статистика и настройки сохранятся."
+        :"Install the embedded Playlog update? Statistics and settings will be preserved.";
+      if(!confirm(message)) return;
+      const button=$("applyUpdate");
+      button.disabled=true;
+      button.textContent=lang==="ru"?"Проверка и установка…":"Verifying and installing…";
+      try {
+        const response=await fetch("/api/update/apply",{method:"POST",cache:"no-store"});
+        const result=await response.json();
+        if(!response.ok || !result.ok) throw Error(result.error||`HTTP ${response.status}`);
+        alert(result.restart_required
+          ? (lang==="ru"
+              ?`Обновление установлено. Резервная копия создана: ${result.backup_id||"—"}. Перезапустите Playlog или консоль.`
+              :`Update installed. Backup created: ${result.backup_id||"—"}. Restart Playlog or the console.`)
+          : (lang==="ru"?"Обновление установлено.":"Update installed."));
+        location.reload();
+      } catch(error) {
+        alert((lang==="ru"?"Ошибка обновления: ":"Update failed: ")+error.message);
+        button.disabled=false;
+        checkUpdate();
+      }
+    });
+    $("backupList").addEventListener("click",event=>{
+      const restore=event.target.closest("[data-backup-restore]");
+      const remove=event.target.closest("[data-backup-delete]");
+      if(restore) {
+        const message=lang==="ru"
+          ?"Заменить текущую историю данными из этой копии? Перед заменой автоматически создастся защитная копия текущего состояния."
+          :"Replace the current history with this backup? A safety backup of the current state will be created first.";
+        if(confirm(message)) backupRequest(
+          `/api/backups/restore?id=${encodeURIComponent(restore.dataset.backupRestore)}`,
+          lang==="ru"?"Создаём защитную копию текущего состояния…":"Creating a safety backup of the current state…",
+          lang==="ru"?"Проверяем CRC и восстанавливаем данные…":"Verifying CRC and restoring data…",
+          lang==="ru"?"Готово. История восстановлена, дашборд обновлён.":"Done. History was restored and the dashboard was refreshed."
+        );
+      } else if(remove) {
+        const message=lang==="ru"
+          ?"Удалить эту резервную копию? Это действие нельзя отменить."
+          :"Delete this backup? This cannot be undone.";
+        if(confirm(message)) backupRequest(
+          `/api/backups/delete?id=${encodeURIComponent(remove.dataset.backupDelete)}`,
+          lang==="ru"?"Удаляем выбранную копию…":"Deleting the selected backup…",
+          lang==="ru"?"Обновляем список…":"Refreshing the list…",
+          lang==="ru"?"Копия удалена.":"Backup deleted."
+        );
+      }
+    });
+    $("settingsForm").addEventListener("submit",async event=>{
+      event.preventDefault();
+      const offset=Number($("settingsOffset").value);
+      const timezone=$("settingsTimezone").value.trim();
+      const firmwareNumber=Number(String($("settingsFirmware").value).replace(",","."));
+      const firmware=Number.isFinite(firmwareNumber) ? firmwareNumber.toFixed(2) : "";
+      if(!Number.isInteger(offset) || offset < -720 || offset > 840 || !timezone
+         || !firmware || firmwareNumber < 0.01 || firmwareNumber > 99.99) {
+        $("settingsError").textContent=lang==="ru"?"Проверьте введённые значения.":"Check the entered values.";
+        return;
+      }
+      $("saveSettings").disabled=true;
+      try {
+        const query=`timezone_offset_minutes=${encodeURIComponent(offset)}&timezone_name=${encodeURIComponent(timezone)}&firmware=${encodeURIComponent(firmware)}`;
+        const response=await fetch(`/api/config?${query}`,{method:"POST",cache:"no-store"});
+        if(!response.ok) throw Error(response.status);
+        currentData=await loadData();
+        closeModal("settingsModal");
+        render(currentData);
+      } catch(error) {
+        $("settingsError").textContent=(lang==="ru"?"Ошибка сохранения: ":"Save error: ")+error.message;
+      } finally {
+        $("saveSettings").disabled=false;
+      }
+    });
+    $("gamesTable").addEventListener("click",async event => {
+      const button=event.target.closest("[data-complete]"); if(!button || !currentData) return;
+      const game=(currentData.games||[]).find(item=>item.title_id===button.dataset.complete); if(!game) return;
+      button.disabled=true;
+      try {
+        const response=await fetch(`/api/completed?title_id=${encodeURIComponent(game.title_id)}&completed=${isCompleted(game)?0:1}`,{method:"POST",cache:"no-store"});
+        if(!response.ok) throw Error(response.status);
+        currentData=await loadData();
+        render(currentData);
+      } catch(error) {
+        button.disabled=false;
+        $("events").innerHTML=`<div class="event info"><div class="event-top"><b>API error</b></div><p>${esc(error.message)}</p></div>`+$("events").innerHTML;
+      }
+    });
+    applyLanguage();
+    loadAccess();
+    const loadData=()=>fetch(`summary.json?t=${Date.now()}`,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error(r.status);return r.json()});
+    loadData().then(data => { currentData=data; render(data) })
+      .catch(() => $("events").innerHTML='<div class="empty">Could not load summary.json</div>');
+    checkUpdate();
+    setInterval(() => loadData().then(data => {
+      currentData=data;
+      render(data);
+    }).catch(() => {}), 30000);
+  </script>
+</body>
+</html>
