@@ -33,7 +33,8 @@ static const char setup_html[] =
     ".choices{display:flex;gap:16px;margin-top:28px}button{flex:1;padding:20px;"
     "border:1px solid #3f8eff;border-radius:14px;background:#102c58;"
     "color:white;font-size:20px}button:focus{outline:4px solid #72b5ff}"
-    "#status{min-height:28px;margin-top:24px;color:#ffd774}</style></head>"
+    "#status{min-height:28px;margin-top:24px;color:#ffd774;white-space:pre-line}"
+    "</style></head>"
     "<body><main class=card><h1>Playlog</h1>"
     "<p id=intro>Choose how payloads start on this console.</p>"
     "<div class=choices><button onclick=\"install('etahen')\">etaHEN</button>"
@@ -43,7 +44,9 @@ static const char setup_html[] =
     "s.textContent='Installing Playlog...';fetch('/api/setup/install?mode='+mode,"
     "{method:'POST',cache:'no-store'}).then(function(r){return r.json()"
     ".then(function(j){if(!r.ok||!j.ok)throw Error(j.error||r.status);return j})})"
-    ".then(function(){s.textContent='Installed. Restart etaHEN or the console.'})"
+    ".then(function(j){s.textContent=j.manual_autoload_required?"
+    "'Playlog files were copied, but autoload.txt was left unchanged because it is missing or contains no payload chain. Payload Manager: keep the file missing (or remove an empty file) and enable Playlog in PLK. Manual autoloader: add the jailbreak payloads first, then Playlog.elf.':"
+    "'Installed. Restart etaHEN or the console.'})"
     ".catch(function(e){s.textContent='Installation failed: '+e.message})}"
     "</script></body></html>";
 

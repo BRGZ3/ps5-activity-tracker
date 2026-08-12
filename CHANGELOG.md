@@ -2,6 +2,15 @@
 
 [Русская версия](CHANGELOG.ru.md)
 
+## 1.0.1-beta.1 — 2026-08-12
+
+- no longer creates `/data/ps5_autoloader/autoload.txt` when it is missing;
+- leaves empty, comment-only and directive-only autoload configurations unchanged;
+- appends Playlog only when an existing configuration already contains another payload;
+- preserves the user's chosen position when Playlog is already listed;
+- warns when Playlog is the only payload in the existing configuration;
+- reports when manual Payload Manager/autoload configuration is required.
+
 ## 1.0.0 — 2026-08-06
 
 First public Playlog / PS5 Activity Tracker release.

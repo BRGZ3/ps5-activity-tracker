@@ -328,37 +328,34 @@ offline_ensure_autoload_entry(const char *list_path,
     char *contents = NULL;
     size_t length = 0;
     size_t position = 0;
-    int target_written = 0;
-    int previous_is_pause = 0;
+    int has_other_payload = 0;
+    int has_target = 0;
     int failed = 0;
 
     if(!list_path || !entry_name || !entry_name[0]
        || strchr(entry_name, '\n') || strchr(entry_name, '\r')) return -1;
     if(snprintf(temporary, sizeof(temporary), "%s.new", list_path)
        >= (int)sizeof(temporary)) return -1;
-    if(stat(list_path, &info) == 0) {
-        if(info.st_size < 0 || info.st_size > 64 * 1024) return -1;
-        input = fopen(list_path, "rb");
-        if(!input) return -1;
-        length = (size_t)info.st_size;
-        contents = malloc(length + 1);
-        if(!contents) {
-            fclose(input);
-            return -1;
-        }
-        if(length && fread(contents, 1, length, input) != length) {
-            fclose(input);
-            free(contents);
-            return -1;
-        }
-        fclose(input);
-        contents[length] = '\0';
+    if(stat(list_path, &info) != 0) {
+        return errno == ENOENT ? OFFLINE_AUTOLOAD_MANUAL_REQUIRED : -1;
     }
-    output = fopen(temporary, "wb");
-    if(!output) {
+    if(info.st_size < 0 || info.st_size > 64 * 1024) return -1;
+    input = fopen(list_path, "rb");
+    if(!input) return -1;
+    length = (size_t)info.st_size;
+    contents = malloc(length + 1);
+    if(!contents) {
+        fclose(input);
+        return -1;
+    }
+    if(length && fread(contents, 1, length, input) != length) {
+        fclose(input);
         free(contents);
         return -1;
     }
+    fclose(input);
+    contents[length] = '\0';
+
     while(position < length) {
         size_t start = position;
         size_t line_length;
@@ -367,40 +364,49 @@ offline_ensure_autoload_entry(const char *list_path,
         if(line_length && contents[start + line_length - 1] == '\r') {
             line_length--;
         }
-        if(line_length == strlen(entry_name)
-           && memcmp(contents + start, entry_name, line_length) == 0) {
-            if(!target_written) {
-                if(!previous_is_pause && fputs("!5000\n", output) == EOF) {
-                    failed = 1;
-                    break;
-                }
-                if(fputs(entry_name, output) == EOF
-                   || fputc('\n', output) == EOF) {
-                    failed = 1;
-                    break;
-                }
-                target_written = 1;
-            }
-            previous_is_pause = 0;
-        } else {
-            if(line_length && fwrite(contents + start, 1, line_length, output)
-                    != line_length) {
-                failed = 1;
+        for(size_t i = 0; i < line_length; i++) {
+            if(contents[start + i] == '#') {
+                line_length = i;
                 break;
             }
-            if(fputc('\n', output) == EOF) {
-                failed = 1;
-                break;
+        }
+        while(line_length
+              && (contents[start + line_length - 1] == ' '
+                  || contents[start + line_length - 1] == '\t')) {
+            line_length--;
+        }
+        if(line_length && contents[start] != '!' && contents[start] != '@') {
+            if(line_length == strlen(entry_name)
+               && memcmp(contents + start, entry_name, line_length) == 0) {
+                has_target = 1;
+            } else {
+                has_other_payload = 1;
             }
-            previous_is_pause = line_length == 5
-                && memcmp(contents + start, "!5000", 5) == 0;
         }
         if(position < length) position++;
     }
-    if(!failed && !target_written) {
-        if(fputs("!5000\n", output) == EOF
-           || fputs(entry_name, output) == EOF
-           || fputc('\n', output) == EOF) failed = 1;
+    if(has_target) {
+        free(contents);
+        return has_other_payload ? OFFLINE_AUTOLOAD_CONFIGURED
+                                 : OFFLINE_AUTOLOAD_MANUAL_REQUIRED;
+    }
+    if(!has_other_payload) {
+        free(contents);
+        return OFFLINE_AUTOLOAD_MANUAL_REQUIRED;
+    }
+
+    output = fopen(temporary, "wb");
+    if(!output) {
+        free(contents);
+        return -1;
+    }
+    if(length && fwrite(contents, 1, length, output) != length) failed = 1;
+    if(!failed && length && contents[length - 1] != '\n'
+       && fputc('\n', output) == EOF) failed = 1;
+    if(!failed && (fputs("!5000\n", output) == EOF
+                   || fputs(entry_name, output) == EOF
+                   || fputc('\n', output) == EOF)) {
+        failed = 1;
     }
     if(!failed && (fflush(output) != 0 || fsync(fileno(output)) != 0)) {
         failed = 1;
@@ -411,7 +417,7 @@ offline_ensure_autoload_entry(const char *list_path,
         unlink(temporary);
         return -1;
     }
-    return 0;
+    return OFFLINE_AUTOLOAD_CONFIGURED;
 }
 
 int
@@ -424,6 +430,7 @@ offline_remove_autoload_entry(const char *list_path,
     char *contents = NULL;
     size_t length = 0;
     size_t position = 0;
+    int entry_found = 0;
     int failed = 0;
 
     if(!list_path || !entry_name || !entry_name[0]
@@ -443,6 +450,26 @@ offline_remove_autoload_entry(const char *list_path,
     }
     fclose(input);
     contents[length] = '\0';
+    while(position < length) {
+        size_t start = position;
+        size_t line_length;
+        while(position < length && contents[position] != '\n') position++;
+        line_length = position - start;
+        if(line_length && contents[start + line_length - 1] == '\r') {
+            line_length--;
+        }
+        if(line_length == strlen(entry_name)
+           && memcmp(contents + start, entry_name, line_length) == 0) {
+            entry_found = 1;
+            break;
+        }
+        if(position < length) position++;
+    }
+    if(!entry_found) {
+        free(contents);
+        return 0;
+    }
+    position = 0;
     output = fopen(temporary, "wb");
     if(!output) {
         free(contents);
@@ -458,12 +485,11 @@ offline_remove_autoload_entry(const char *list_path,
         }
         if(line_length != strlen(entry_name)
            || memcmp(contents + start, entry_name, line_length) != 0) {
-            if(line_length && fwrite(contents + start, 1, line_length, output)
-                    != line_length) {
-                failed = 1;
-                break;
-            }
-            if(fputc('\n', output) == EOF) {
+            size_t raw_length = position - start;
+            if(position < length) raw_length++;
+            if(raw_length
+               && fwrite(contents + start, 1, raw_length, output)
+                    != raw_length) {
                 failed = 1;
                 break;
             }
@@ -538,6 +564,7 @@ offline_setup_install(const char *mode, char *output, size_t output_size) {
     uint64_t consumed = sizeof(bundle_header_t);
     int dashboard_written = 0;
     int runtime_written = 0;
+    int autoload_result = 0;
     if(strcmp(mode, "etahen") != 0 && strcmp(mode, "autoloader") != 0) {
         goto invalid;
     }
@@ -596,8 +623,11 @@ offline_setup_install(const char *mode, char *output, size_t output_size) {
                 AUTOLOADER_LIST, "ps5-activity-tracker.elf") != 0) {
             goto failure;
         }
-        if(copy_file_atomic(RUNTIME_TARGET, AUTOLOADER_TARGET) != 0
-           || ensure_autoload_line() != 0) goto failure;
+        if(copy_file_atomic(RUNTIME_TARGET, AUTOLOADER_TARGET) != 0) {
+            goto failure;
+        }
+        autoload_result = ensure_autoload_line();
+        if(autoload_result < 0) goto failure;
     }
     if(write_install_state(mode, &bundle) != 0
        || write_applied_version(bundle.header.package_version) != 0) {
@@ -606,8 +636,9 @@ offline_setup_install(const char *mode, char *output, size_t output_size) {
     return snprintf(
         output, output_size,
         "{\"ok\":true,\"mode\":\"%s\",\"tracker_version\":\"%s\","
-        "\"restart_required\":true}\n",
-        mode, bundle.header.tracker_version)
+        "\"restart_required\":true,\"manual_autoload_required\":%s}\n",
+        mode, bundle.header.tracker_version,
+        autoload_result == OFFLINE_AUTOLOAD_MANUAL_REQUIRED ? "true" : "false")
         < (int)output_size ? 0 : -1;
 invalid:
     if(source) fclose(source);
@@ -663,6 +694,7 @@ offline_update_apply(char *output, size_t output_size) {
     uint64_t consumed = sizeof(bundle_header_t);
     int dashboard = 0;
     int runtime = 0;
+    int autoload_result = 0;
     if(find_bundle(&bundle) != 0) goto invalid;
     if(!tracker_backup_create || clock_gettime(CLOCK_REALTIME, &now) != 0
        || tracker_backup_create(
@@ -701,9 +733,9 @@ offline_update_apply(char *output, size_t output_size) {
     }
     fclose(source);
     source = NULL;
-    if(runtime && strcmp(installed_runtime_target(), AUTOLOADER_TARGET) == 0
-       && ensure_autoload_line() != 0) {
-        goto failure;
+    if(runtime && strcmp(installed_runtime_target(), AUTOLOADER_TARGET) == 0) {
+        autoload_result = ensure_autoload_line();
+        if(autoload_result < 0) goto failure;
     }
     if(consumed != bundle.length
        || write_applied_version(bundle.header.package_version) != 0) {
@@ -713,10 +745,13 @@ offline_update_apply(char *output, size_t output_size) {
         output, output_size,
         "{\"ok\":true,\"package_version\":\"%s\","
         "\"dashboard_updated\":%s,\"runtime_updated\":%s,"
-        "\"restart_required\":%s,\"backup_id\":\"%s\"}\n",
+        "\"restart_required\":%s,\"manual_autoload_required\":%s,"
+        "\"backup_id\":\"%s\"}\n",
         bundle.header.package_version, dashboard ? "true" : "false",
         runtime ? "true" : "false", runtime ? "true" : "false",
-        backup_id) < (int)output_size ? 0 : -1;
+        autoload_result == OFFLINE_AUTOLOAD_MANUAL_REQUIRED ? "true" : "false",
+        backup_id)
+        < (int)output_size ? 0 : -1;
 invalid:
     if(source) fclose(source);
     snprintf(output, output_size,

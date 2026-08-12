@@ -43,7 +43,7 @@ dashboard выбирается способ автозапуска.
 
 ## Установка
 
-1. Скачайте PKG и `Playlog.elf` из GitHub Release `v1.0.0`.
+1. Скачайте PKG и `Playlog.elf` из GitHub Release.
 2. Установите PKG с Title ID `ACTV00002`.
 3. Один раз запустите `Playlog.elf` через USB/etaHEN Toolbox или loader на
    порт `9021`. Runtime ждёт пять секунд перед инициализацией.
@@ -57,12 +57,24 @@ dashboard выбирается способ автозапуска.
 /data/etaHEN/plugins/Playlog.elf
 /data/etaHEN/plugins/Playlog.elf.auto_start
 /data/ps5_autoloader/Playlog.elf
-/data/ps5_autoloader/autoload.txt
+/data/ps5_autoloader/autoload.txt (изменяется только при существующей цепочке)
 /data/ps5-activity/
 ```
 
 Выбирайте только один способ автозапуска. Не запускайте одновременно ELF и
 старый `.plugin`.
+
+В режиме `ShadowMount+ / PLK` Playlog никогда не создаёт `autoload.txt`. Если
+файл отсутствует, пуст или содержит только комментарии, задержки и директивы,
+он остаётся без изменений, а страница настройки выводит инструкцию для ручной
+настройки. Это сохраняет встроенный fallback на Payload Manager в цепочках
+BD-JB, Y2JB, Lua и Unified Autoloader.
+
+Если существующий `autoload.txt` уже содержит другой payload, Playlog добавляет
+`!5000` и `Playlog.elf` в конец. Если Playlog уже прописан, файл и выбранный
+пользователем порядок запуска остаются без изменений. Файл только с Playlog
+также сохраняется, но отмечается как требующий ручной настройки. Пользователям
+Payload Manager следует включить Playlog в автозагрузке самого PLK.
 
 ## Dashboard и LAN
 

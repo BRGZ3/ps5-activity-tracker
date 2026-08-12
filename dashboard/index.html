@@ -360,7 +360,7 @@
     </section>
 
     <footer class="footer">
-      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.40.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
+      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.41.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
       <div class="foot-status"><span id="updated">Обновлено: —</span><span><i class="dot" style="display:inline-block;margin-right:7px"></i><span data-i18n="localData">локальные данные</span></span></div>
     </footer>
   </main>
@@ -776,7 +776,11 @@
         const response=await fetch("/api/update/apply",{method:"POST",cache:"no-store"});
         const result=await response.json();
         if(!response.ok || !result.ok) throw Error(result.error||`HTTP ${response.status}`);
-        alert(result.restart_required
+        alert(result.manual_autoload_required
+          ? (lang==="ru"
+              ?"Файлы обновлены, но autoload.txt отсутствует или не содержит цепочки payload, поэтому Playlog его не изменял. Для PLK оставьте файл отсутствующим (или удалите пустой) и включите Playlog в Payload Manager. Для ручного autoloader сначала добавьте нагрузки взлома, затем Playlog.elf."
+              :"Files were updated, but autoload.txt is missing or contains no payload chain, so Playlog left it unchanged. For PLK, keep the file missing (or remove an empty file) and enable Playlog in Payload Manager. For a manual autoloader, add the jailbreak payloads first and Playlog.elf last.")
+          : result.restart_required
           ? (lang==="ru"
               ?`Обновление установлено. Резервная копия создана: ${result.backup_id||"—"}. Перезапустите Playlog или консоль.`
               :`Update installed. Backup created: ${result.backup_id||"—"}. Restart Playlog or the console.`)

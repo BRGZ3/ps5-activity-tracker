@@ -6,6 +6,12 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="$(LibProsperoPkgDir)/src/LibProsperoPkg/LibProsperoPkg.csproj" />
+    <ProjectReference
+      Include="$(LibProsperoPkgDir)/src/LibProsperoPkg/LibProsperoPkg.csproj"
+      Condition="Exists('$(LibProsperoPkgDir)/src/LibProsperoPkg/LibProsperoPkg.csproj')" />
+    <Reference Include="LibProsperoPkg"
+      Condition="!Exists('$(LibProsperoPkgDir)/src/LibProsperoPkg/LibProsperoPkg.csproj')">
+      <HintPath>$(LibProsperoPkgDir)/LibProsperoPkg.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

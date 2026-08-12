@@ -4,6 +4,8 @@
 #include <stddef.h>
 
 #define OFFLINE_UPDATE_STATUS_SIZE 512
+#define OFFLINE_AUTOLOAD_CONFIGURED 0
+#define OFFLINE_AUTOLOAD_MANUAL_REQUIRED 1
 
 int offline_update_status_json(char *output, size_t output_size);
 int offline_update_apply(char *output, size_t output_size);

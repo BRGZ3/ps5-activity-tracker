@@ -23,7 +23,7 @@ PS5 Payload SDK
 prospero-clang
 Node.js
 Docker с linux/arm64
-LibProsperoPKG checkout
+исходники LibProsperoPKG или готовый `LibProsperoPkg.dll`
 ```
 
 Путь к builder можно задать:
@@ -31,6 +31,9 @@ LibProsperoPKG checkout
 ```bash
 LIBPROSPEROPKG_DIR=/path/to/LibProsperoPKG-build make
 ```
+
+Если в каталоге нет исходников, builder использует
+`$LIBPROSPEROPKG_DIR/LibProsperoPkg.dll`.
 
 Для воспроизводимой публикации нужно дополнительно зафиксировать revision
 LibProsperoPKG и digest Docker image. v1.0 сохраняет возможность переопределить
