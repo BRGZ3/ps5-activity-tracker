@@ -2,6 +2,14 @@
 
 [Русская версия](CHANGELOG.ru.md)
 
+## 1.0.1-beta.2 — 2026-08-14
+
+- tracks foreground and Home transitions through `SceShellCoreUtilAppFocus`;
+- keeps the legacy `/dev/klog` focus parser as a fallback for older firmware;
+- addresses zero-session tracking observed on firmware 11.60, where the
+  legacy `FG App was changed` line is absent;
+- ignores duplicate lifecycle transitions reported by both sources.
+
 ## 1.0.1-beta.1 — 2026-08-12
 
 - no longer creates `/data/ps5_autoloader/autoload.txt` when it is missing;

@@ -1,6 +1,6 @@
 PLUGIN := ps5-activity-tracker.plugin
 PLUGIN_TITLE_ID := ACTV00001
-PLUGIN_VERSION := 1.41
+PLUGIN_VERSION := 1.42
 
 .PHONY: plugin
 

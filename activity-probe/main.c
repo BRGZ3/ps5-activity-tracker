@@ -15,6 +15,7 @@
 
 #include "tracker.h"
 #include "http_server.h"
+#include "app_focus_monitor.h"
 
 #define DATA_DIR "/data/ps5-activity"
 #define EVENT_PATH DATA_DIR "/probe-events.jsonl"
@@ -29,6 +30,7 @@
 #define MAX_PARAM_JSON_SIZE (1024 * 1024)
 #define ENABLE_DIAGNOSTIC_CAPTURE 0
 #define STARTUP_DELAY_SECONDS 5
+#define IDLE_POLL_NANOSECONDS 100000000L
 
 #ifndef PROBE_VERSION
 #define PROBE_VERSION "dev"
@@ -482,14 +484,14 @@ handle_focus_transition(uint32_t old_app_id, uint32_t new_app_id,
     }
     new_title = lookup_title(new_app_id);
 
-    if(old_title && old_app_id != new_app_id) {
+    if(old_title && old_app_id != new_app_id
+       && foreground_app_id == old_app_id) {
         write_event("background", old_title, old_app_id, line, NULL);
-        if(foreground_app_id == old_app_id) {
-            foreground_app_id = 0;
-            foreground_title[0] = '\0';
-        }
+        foreground_app_id = 0;
+        foreground_title[0] = '\0';
     }
-    if(new_title && old_app_id != new_app_id) {
+    if(new_title && old_app_id != new_app_id
+       && foreground_app_id != new_app_id) {
         if(load_title_name(new_title, title_name)) {
             write_event("metadata", new_title, new_app_id, NULL, title_name);
         }
@@ -577,7 +579,9 @@ main(void) {
     ssize_t bytes_read;
     int klog_fd;
     int notify_result;
+    int focus_available;
     char notify_status[64];
+    app_focus_monitor_t focus_monitor;
     struct timespec startup_pause = {STARTUP_DELAY_SECONDS, 0};
 
     if(mkdir(DATA_DIR, 0755) < 0 && errno != EEXIST) {
@@ -631,6 +635,10 @@ main(void) {
         unlink(PID_PATH);
         return 1;
     }
+    focus_available = app_focus_monitor_open(&focus_monitor) == 0;
+    write_event(focus_available ? "app_focus_monitor" :
+                "app_focus_monitor_unavailable", NULL, 0,
+                "SceShellCoreUtilAppFocus", NULL);
 
     write_event("probe_start", NULL, 0, "version=" PROBE_VERSION, NULL);
     notify_result = notify("Playlog %s started", TRACKER_VERSION);
@@ -662,9 +670,21 @@ main(void) {
                   && errno != EWOULDBLOCK && errno != EINTR) {
             break;
         }
+        if(focus_available) {
+            uint32_t old_app_id;
+            uint32_t new_app_id;
+            if(app_focus_monitor_poll(
+                   &focus_monitor, &old_app_id, &new_app_id) > 0) {
+                char source[128];
+                snprintf(source, sizeof(source),
+                         "[SceShellCoreUtilAppFocus] 0x%08x -> 0x%08x",
+                         old_app_id, new_app_id);
+                handle_focus_transition(old_app_id, new_app_id, source);
+            }
+        }
         {
             struct timespec now;
-            struct timespec pause = {1, 0};
+            struct timespec pause = {0, IDLE_POLL_NANOSECONDS};
             clock_gettime(CLOCK_REALTIME, &now);
             tracker_tick((uint64_t)now.tv_sec * 1000
                          + (uint64_t)now.tv_nsec / 1000000);
@@ -683,6 +703,7 @@ main(void) {
                          + (uint64_t)now.tv_nsec / 1000000);
     }
     dashboard_http_stop();
+    app_focus_monitor_close(&focus_monitor);
     close(klog_fd);
     fclose(event_file);
     unlink(PID_PATH);

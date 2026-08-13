@@ -2,6 +2,15 @@
 
 [English version](CHANGELOG.md)
 
+## 1.0.1-beta.2 — 2026-08-14
+
+- переходы между игрой и Home теперь отслеживаются через
+  `SceShellCoreUtilAppFocus`;
+- старый focus-парсер `/dev/klog` сохранён как fallback для ранних прошивок;
+- исправляется нулевой учёт сессий, обнаруженный на firmware 11.60, где
+  отсутствует строка `FG App was changed`;
+- одинаковые lifecycle-переходы из двух источников не дублируются.
+
 ## 1.0.1-beta.1 — 2026-08-12
 
 - Playlog больше не создаёт `/data/ps5_autoloader/autoload.txt`, если файла не было;
