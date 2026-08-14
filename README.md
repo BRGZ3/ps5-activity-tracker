@@ -1,8 +1,8 @@
 # Playlog / PS5 Activity Tracker
-
+<p align="center">
+  <img src="Playlog-preview.png" width="1664" height="833" alt="PS5 Playlog">
+</p>
 [Русская версия](README.ru.md)
-
-<img width="1664" height="833" alt="playlog-preview" src="https://github.com/user-attachments/assets/821615a3-2627-42ef-87f5-71295599d5e0" />
 
 
 Playlog is a local activity tracker for a hacked PS5. It works without PSN or
