@@ -27,6 +27,11 @@ class DashboardHttpTests(unittest.TestCase):
             (data / "backups.json").write_text(
                 '{"backups":[]}', encoding="utf-8"
             )
+            appmeta_root = data / "appmeta"
+            appmeta = appmeta_root / "PPSA02177"
+            appmeta.mkdir(parents=True)
+            icon = b"\x89PNG\r\n\x1a\nPLAYLOG-ICON"
+            (appmeta / "icon0.png").write_bytes(icon)
             binary = data / "http-test"
             subprocess.run(
                 [
@@ -36,6 +41,7 @@ class DashboardHttpTests(unittest.TestCase):
                     f"-DDASHBOARD_HTTP_PORT={port}",
                     f'-DDASHBOARD_DIR="{dashboard}"',
                     f'-DTRACKER_DATA_DIR="{data}"',
+                    f'-DUSER_APPMETA_DIR="{appmeta_root}"',
                     "-I",
                     str(ROOT / "activity-probe"),
                     str(ROOT / "tests/http_server_harness.c"),
@@ -64,6 +70,15 @@ class DashboardHttpTests(unittest.TestCase):
                 ) as response:
                     self.assertEqual(
                         response.read(), b'{"ok":true,"read_only":false}\n'
+                    )
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/api/game-icon"
+                    "?title_id=PPSA02177", timeout=2
+                ) as response:
+                    self.assertEqual(response.read(), icon)
+                    self.assertEqual(
+                        response.headers["Cache-Control"],
+                        "public, max-age=86400",
                     )
                 request = urllib.request.Request(
                     f"http://127.0.0.1:{port}/api/completed"

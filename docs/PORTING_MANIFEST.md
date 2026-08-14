@@ -1,4 +1,4 @@
-# Playlog v1.0: architecture and portable parts
+# Playlog: architecture and portable parts
 
 [Русская версия](PORTING_MANIFEST.ru.md)
 
@@ -14,7 +14,7 @@
 User history lives only under `/data/ps5-activity` and must not be included in
 the PKG or Git.
 
-## Tested v1.0 installation flow
+## Tested installation flow
 
 ```text
 PKG ACTV00002 -> Media tile + carrier

@@ -1,4 +1,4 @@
-# Media PKG v1.0 build
+# Сборка Media PKG
 
 [English version](README.md)
 
@@ -36,8 +36,8 @@ LIBPROSPEROPKG_DIR=/path/to/LibProsperoPKG-build make
 `$LIBPROSPEROPKG_DIR/LibProsperoPkg.dll`.
 
 Для воспроизводимой публикации нужно дополнительно зафиксировать revision
-LibProsperoPKG и digest Docker image. v1.0 сохраняет возможность переопределить
-их через переменные Makefile, чтобы сборка выполнялась на машине сопровождающего.
+LibProsperoPKG и digest Docker image. Их можно переопределить через переменные
+Makefile, чтобы сборка выполнялась на машине сопровождающего.
 
 Не коммитьте `dist/`, `builder/bin/`, `builder/obj/`, `icon0.png` и ELF.
 Загрузите полученные PKG и ELF как GitHub Release Assets.

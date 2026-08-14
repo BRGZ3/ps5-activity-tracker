@@ -2,6 +2,17 @@
 
 [Русская версия](CHANGELOG.ru.md)
 
+## 1.1.0 — 2026-08-14
+
+- combines `SceShellCoreUtilAppFocus` tracking with the legacy `/dev/klog`
+  fallback, covering both newer and older firmware event formats;
+- adds local game covers from console metadata without Internet access;
+- no longer repeatedly opens initial settings when firmware auto-detection is
+  unavailable; `unknown` is now a valid saved value;
+- updates every discovered Playlog runtime copy and does not mark an offline
+  carrier as applied unless a usable runtime target was written;
+- keeps an automatic statistics backup before every offline update.
+
 ## 1.0.1-beta.2 — 2026-08-14
 
 - tracks foreground and Home transitions through `SceShellCoreUtilAppFocus`;

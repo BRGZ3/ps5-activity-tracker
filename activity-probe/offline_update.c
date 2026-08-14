@@ -2,6 +2,7 @@
 #include "tracker.h"
 
 #include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -25,12 +26,24 @@ tracker_backup_create(uint64_t now_ms, char *backup_id,
 #define UPDATE_CARRIER_CLEAN "/user/appmeta/ACTV00005/icon0.png"
 #define UPDATE_CARRIER_PRIMARY "/user/appmeta/ACTV00003/icon0.png"
 #define UPDATE_CARRIER_RELEASE "/user/appmeta/ACTV00002/icon0.png"
+#ifndef UPDATE_STATE
 #define UPDATE_STATE "/data/ps5-activity/applied-update.txt"
+#endif
+#ifndef INSTALL_STATE
 #define INSTALL_STATE "/data/ps5-activity/install.json"
+#endif
+#ifndef RUNTIME_DIR
 #define RUNTIME_DIR "/data/ps5-activity/runtime"
+#endif
+#ifndef RUNTIME_TARGET
 #define RUNTIME_TARGET RUNTIME_DIR "/Playlog.elf"
+#endif
+#ifndef DASHBOARD_TARGET
 #define DASHBOARD_TARGET "/data/ps5-activity/dashboard/index.html"
+#endif
+#ifndef ETAHEN_TARGET
 #define ETAHEN_TARGET "/data/etaHEN/plugins/ps5-activity-tracker.plugin"
+#endif
 #ifdef LITE_INSTALLER
 #define ETAHEN_ELF_TARGET \
     "/data/etaHEN/plugins/playlog-compatibility-test.elf"
@@ -38,12 +51,27 @@ tracker_backup_create(uint64_t now_ms, char *backup_id,
     "/data/ps5_autoloader/playlog-compatibility-test.elf"
 #define AUTOLOADER_NAME "playlog-compatibility-test.elf"
 #else
+#ifndef ETAHEN_ELF_TARGET
 #define ETAHEN_ELF_TARGET "/data/etaHEN/plugins/Playlog.elf"
+#endif
+#ifndef AUTOLOADER_TARGET
 #define AUTOLOADER_TARGET "/data/ps5_autoloader/Playlog.elf"
+#endif
 #define AUTOLOADER_NAME "Playlog.elf"
 #endif
 #define ETAHEN_ELF_AUTOSTART ETAHEN_ELF_TARGET ".auto_start"
+#ifndef AUTOLOADER_LIST
 #define AUTOLOADER_LIST "/data/ps5_autoloader/autoload.txt"
+#endif
+#ifndef PLDMGR_ELF_TARGET
+#define PLDMGR_ELF_TARGET "/data/pldmgr/payloads/Playlog.elf"
+#endif
+#ifndef OFFLINE_DATA_ROOT
+#define OFFLINE_DATA_ROOT "/data"
+#endif
+#ifndef OFFLINE_USB_ROOT
+#define OFFLINE_USB_ROOT "/mnt/usb"
+#endif
 #define MAX_BUNDLE_SIZE (8u * 1024u * 1024u)
 #define BUNDLE_VERSION 2u
 
@@ -90,6 +118,8 @@ typedef struct update_bundle {
     uint64_t length;
     bundle_header_t header;
 } update_bundle_t;
+
+static int ensure_autoload_line(void);
 
 static uint32_t
 crc32_update(uint32_t crc, const unsigned char *data, size_t size) {
@@ -216,7 +246,7 @@ find_bundle(update_bundle_t *bundle) {
 }
 
 static const char *
-installed_runtime_target(void) {
+installed_runtime_mode(void) {
     char state[512];
     FILE *file = fopen(INSTALL_STATE, "rb");
     size_t length = 0;
@@ -226,22 +256,22 @@ installed_runtime_target(void) {
         state[length] = '\0';
         if(strstr(state, "\"install_mode\": \"etahen\"")
            || strstr(state, "\"install_mode\":\"etahen\"")) {
-            return ETAHEN_ELF_TARGET;
+            return "etahen";
         }
         if(strstr(state, "\"install_mode\": \"autoloader\"")
            || strstr(state, "\"install_mode\":\"autoloader\"")) {
-            return AUTOLOADER_TARGET;
+            return "autoloader";
         }
     }
-    if(path_exists(ETAHEN_ELF_TARGET)) return ETAHEN_ELF_TARGET;
-    return AUTOLOADER_TARGET;
+    if(path_exists(ETAHEN_ELF_TARGET)) return "etahen";
+    return "autoloader";
 }
 
 static const char *
 target_for_type(uint32_t type) {
     if(type == ENTRY_DASHBOARD) return DASHBOARD_TARGET;
     if(type == ENTRY_PLUGIN) return ETAHEN_TARGET;
-    if(type == ENTRY_ELF) return installed_runtime_target();
+    if(type == ENTRY_ELF) return RUNTIME_TARGET;
     return NULL;
 }
 
@@ -316,6 +346,106 @@ failure:
     close(output);
     unlink(temporary);
     return -1;
+}
+
+static int
+same_path(const char *left, const char *right) {
+    return left && right && strcmp(left, right) == 0;
+}
+
+static int
+append_runtime_target(char targets[][320], unsigned *count,
+                      const char *target, int require_existing) {
+    if(!target || !target[0] || (require_existing && !path_exists(target))) {
+        return 0;
+    }
+    for(unsigned i = 0; i < *count; i++) {
+        if(same_path(targets[i], target)) return 0;
+    }
+    if(*count >= 24 || snprintf(targets[*count], 320, "%s", target) >= 320) {
+        return -1;
+    }
+    (*count)++;
+    return 0;
+}
+
+static int
+discover_runtime_targets(char targets[][320], unsigned *count) {
+    DIR *data = opendir(OFFLINE_DATA_ROOT);
+    if(append_runtime_target(targets, count, ETAHEN_ELF_TARGET, 1) != 0
+       || append_runtime_target(targets, count, AUTOLOADER_TARGET, 1) != 0
+       || append_runtime_target(targets, count, PLDMGR_ELF_TARGET, 1) != 0) {
+        if(data) closedir(data);
+        return -1;
+    }
+    if(data) {
+        struct dirent *entry;
+        while((entry = readdir(data)) != NULL) {
+            char target[320];
+            if(strncmp(entry->d_name, "ps5_autoloader_", 15) != 0) continue;
+            if(snprintf(target, sizeof(target), "%s/%s/%s",
+                        OFFLINE_DATA_ROOT, entry->d_name,
+                        AUTOLOADER_NAME) >= (int)sizeof(target)
+               || append_runtime_target(targets, count, target, 1) != 0) {
+                closedir(data);
+                return -1;
+            }
+        }
+        closedir(data);
+    }
+    for(int index = 0; index < 8; index++) {
+        char target[320];
+        if(snprintf(target, sizeof(target), "%s%d/ps5_autoloader/%s",
+                    OFFLINE_USB_ROOT, index, AUTOLOADER_NAME)
+               >= (int)sizeof(target)
+           || append_runtime_target(targets, count, target, 1) != 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int
+offline_deploy_runtime_copies(const char *source_path, const char *mode,
+                              unsigned *copies_written,
+                              int *manual_autoload_required) {
+    char targets[24][320];
+    unsigned count = 0;
+    unsigned written = 0;
+    int autoload_result = 0;
+    const char *selected;
+    if(copies_written) *copies_written = 0;
+    if(manual_autoload_required) *manual_autoload_required = 0;
+    if(!source_path || (strcmp(mode, "etahen") != 0
+                        && strcmp(mode, "autoloader") != 0)) {
+        return -1;
+    }
+    selected = strcmp(mode, "etahen") == 0
+        ? ETAHEN_ELF_TARGET : AUTOLOADER_TARGET;
+    if(discover_runtime_targets(targets, &count) != 0
+       || ((strcmp(mode, "etahen") == 0 || count == 0)
+           && append_runtime_target(targets, &count, selected, 0) != 0)) {
+        return -1;
+    }
+    for(unsigned i = 0; i < count; i++) {
+        if(copy_file_atomic(source_path, targets[i]) != 0) return -1;
+        written++;
+    }
+    if(strcmp(mode, "autoloader") == 0) {
+        autoload_result = ensure_autoload_line();
+        if(autoload_result < 0) return -1;
+    }
+    if(copies_written) *copies_written = written;
+    if(manual_autoload_required) {
+        *manual_autoload_required =
+            autoload_result == OFFLINE_AUTOLOAD_MANUAL_REQUIRED;
+    }
+    if(strcmp(mode, "autoloader") == 0
+       && autoload_result == OFFLINE_AUTOLOAD_MANUAL_REQUIRED
+       && count == 1 && same_path(targets[0], AUTOLOADER_TARGET)) {
+        return OFFLINE_RUNTIME_MANUAL_REQUIRED;
+    }
+    return written ? 0 : OFFLINE_RUNTIME_MANUAL_REQUIRED;
 }
 
 int
@@ -695,6 +825,8 @@ offline_update_apply(char *output, size_t output_size) {
     int dashboard = 0;
     int runtime = 0;
     int autoload_result = 0;
+    unsigned runtime_copies = 0;
+    const char *runtime_mode;
     if(find_bundle(&bundle) != 0) goto invalid;
     if(!tracker_backup_create || clock_gettime(CLOCK_REALTIME, &now) != 0
        || tracker_backup_create(
@@ -722,8 +854,6 @@ offline_update_apply(char *output, size_t output_size) {
         if(!target) goto invalid;
         if(entry.type == ENTRY_PLUGIN && !path_exists(ETAHEN_TARGET)) {
             if(fseeko(source, entry.length, SEEK_CUR) != 0) goto invalid;
-        } else if(entry.type == ENTRY_ELF && !path_exists(target)) {
-            if(fseeko(source, entry.length, SEEK_CUR) != 0) goto invalid;
         } else {
             if(copy_entry(source, &entry, target) != 0) goto failure;
             if(entry.type == ENTRY_DASHBOARD) dashboard = 1;
@@ -733,11 +863,14 @@ offline_update_apply(char *output, size_t output_size) {
     }
     fclose(source);
     source = NULL;
-    if(runtime && strcmp(installed_runtime_target(), AUTOLOADER_TARGET) == 0) {
-        autoload_result = ensure_autoload_line();
-        if(autoload_result < 0) goto failure;
+    runtime_mode = installed_runtime_mode();
+    if(runtime) {
+        int deploy_result = offline_deploy_runtime_copies(
+            RUNTIME_TARGET, runtime_mode, &runtime_copies, &autoload_result);
+        if(deploy_result == OFFLINE_RUNTIME_MANUAL_REQUIRED) goto manual;
+        if(deploy_result != 0) goto failure;
     }
-    if(consumed != bundle.length
+    if(consumed != bundle.length || !runtime || runtime_copies == 0
        || write_applied_version(bundle.header.package_version) != 0) {
         goto failure;
     }
@@ -745,11 +878,13 @@ offline_update_apply(char *output, size_t output_size) {
         output, output_size,
         "{\"ok\":true,\"package_version\":\"%s\","
         "\"dashboard_updated\":%s,\"runtime_updated\":%s,"
+        "\"runtime_copies\":%u,"
         "\"restart_required\":%s,\"manual_autoload_required\":%s,"
         "\"backup_id\":\"%s\"}\n",
         bundle.header.package_version, dashboard ? "true" : "false",
-        runtime ? "true" : "false", runtime ? "true" : "false",
-        autoload_result == OFFLINE_AUTOLOAD_MANUAL_REQUIRED ? "true" : "false",
+        runtime ? "true" : "false", runtime_copies,
+        runtime ? "true" : "false",
+        autoload_result ? "true" : "false",
         backup_id)
         < (int)output_size ? 0 : -1;
 invalid:
@@ -761,5 +896,10 @@ failure:
     if(source) fclose(source);
     snprintf(output, output_size,
              "{\"ok\":false,\"error\":\"could not write update files\"}\n");
+    return -1;
+manual:
+    if(source) fclose(source);
+    snprintf(output, output_size,
+             "{\"ok\":false,\"error\":\"runtime files were extracted but no active autoload target was confirmed; configure Playlog in Payload Manager or autoload.txt and retry\"}\n");
     return -1;
 }

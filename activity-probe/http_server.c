@@ -21,6 +21,19 @@ static pthread_t server_thread;
 static int server_fd = -1;
 static volatile int server_running;
 
+#ifndef USER_APPMETA_DIR
+#define USER_APPMETA_DIR "/user/appmeta"
+#endif
+#ifndef SYSTEM_APPMETA_DIR
+#define SYSTEM_APPMETA_DIR "/system_data/priv/appmeta"
+#endif
+#ifndef USER_APP_DIR
+#define USER_APP_DIR "/user/app"
+#endif
+#ifndef SYSTEM_APP_DIR
+#define SYSTEM_APP_DIR "/system_ex/app"
+#endif
+
 static const char setup_html[] =
     "<!doctype html><html><head><meta charset=utf-8>"
     "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
@@ -80,7 +93,8 @@ send_text(int client, int status, const char *status_text,
 }
 
 static void
-send_file(int client, const char *path, const char *content_type) {
+send_file_cached(int client, const char *path, const char *content_type,
+                 const char *cache_control) {
     struct stat info;
     char header[512];
     char buffer[8192];
@@ -96,9 +110,9 @@ send_file(int client, const char *path, const char *content_type) {
     header_length = snprintf(
         header, sizeof(header),
         "HTTP/1.1 200 OK\r\nContent-Type: %s\r\n"
-        "Content-Length: %lld\r\nCache-Control: no-store\r\n"
+        "Content-Length: %lld\r\nCache-Control: %s\r\n"
         "Access-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
-        content_type, (long long)info.st_size);
+        content_type, (long long)info.st_size, cache_control);
     if(header_length > 0
        && send_all(client, header, (size_t)header_length) == 0) {
         while((count = read(file, buffer, sizeof(buffer))) > 0) {
@@ -106,6 +120,45 @@ send_file(int client, const char *path, const char *content_type) {
         }
     }
     close(file);
+}
+
+static void
+send_file(int client, const char *path, const char *content_type) {
+    send_file_cached(client, path, content_type, "no-store");
+}
+
+static int
+valid_game_title_id(const char *title_id) {
+    if(!title_id || strlen(title_id) != 9
+       || (strncmp(title_id, "CUSA", 4) != 0
+           && strncmp(title_id, "PPSA", 4) != 0)) {
+        return 0;
+    }
+    for(size_t i = 4; i < 9; i++) {
+        if(title_id[i] < '0' || title_id[i] > '9') return 0;
+    }
+    return 1;
+}
+
+static int
+find_game_icon(const char *title_id, char output[320]) {
+    static const char *formats[] = {
+        USER_APPMETA_DIR "/%s/icon0.png",
+        SYSTEM_APPMETA_DIR "/%s/icon0.png",
+        USER_APP_DIR "/%s/icon0.png",
+        USER_APP_DIR "/%s/sce_sys/icon0.png",
+        SYSTEM_APP_DIR "/%s/sce_sys/icon0.png"
+    };
+    struct stat info;
+    if(!valid_game_title_id(title_id)) return -1;
+    for(size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
+        int written = snprintf(output, 320, formats[i], title_id);
+        if(written > 0 && written < 320 && stat(output, &info) == 0
+           && S_ISREG(info.st_mode) && info.st_size > 0) {
+            return 0;
+        }
+    }
+    return -1;
 }
 
 static int
@@ -349,7 +402,7 @@ handle_client(int client, int local_client,
         return;
     }
     char *query = strchr(path, '?');
-    if(query) *query = '\0';
+    if(query) *query++ = '\0';
     if(strcmp(path, "/") == 0 || strcmp(path, "/index.html") == 0) {
         if(access(DASHBOARD_DIR "/index.html", R_OK) == 0) {
             send_file(client, DASHBOARD_DIR "/index.html",
@@ -391,6 +444,16 @@ handle_client(int client, int local_client,
                   local_client
                       ? "{\"ok\":true,\"read_only\":false}\n"
                       : "{\"ok\":true,\"read_only\":true}\n");
+    } else if(strcmp(path, "/api/game-icon") == 0 && query) {
+        char icon_path[320];
+        if(query_value(query, "title_id", title_id, sizeof(title_id)) == 0
+           && find_game_icon(title_id, icon_path) == 0) {
+            send_file_cached(client, icon_path, "image/png",
+                             "public, max-age=86400");
+        } else {
+            send_text(client, 404, "Not Found", "text/plain; charset=utf-8",
+                      "Game icon not found\n");
+        }
     } else {
         send_text(client, 404, "Not Found", "text/plain; charset=utf-8",
                   "Not found\n");

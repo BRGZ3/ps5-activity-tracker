@@ -226,8 +226,12 @@ load_config(uint64_t now_ms) {
         end = strchr(marker, '"');
         if(end && end > marker
            && (size_t)(end - marker) < sizeof(firmware_version)) {
-            memcpy(firmware_version, marker, (size_t)(end - marker));
-            firmware_version[end - marker] = '\0';
+            size_t firmware_length = (size_t)(end - marker);
+            if(firmware_length != strlen("unknown")
+               || strncmp(marker, "unknown", firmware_length) != 0) {
+                memcpy(firmware_version, marker, firmware_length);
+                firmware_version[firmware_length] = '\0';
+            }
         }
     }
 }

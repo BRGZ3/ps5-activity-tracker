@@ -9,20 +9,20 @@ Playlog is a local activity tracker for a hacked PS5. It works without PSN or
 external services: the runtime reads system events, measures play and pause
 time, and the dashboard presents the statistics on the console.
 
-Current public release: **1.0.0**.
+Current public release: **1.1.0**.
 
-The public release tag is `v1.0.0`. The PKG keeps its monotonic internal
-installer metadata (`01.046.000`) so it can be installed over the tested
+The public release tag is `v1.1.0`. The PKG keeps its monotonic internal
+installer metadata (`01.049.000`) so it can be installed over the tested
 runtime versions; do not lower or rewrite that value when uploading the asset.
 
-> This is the first public v1.0 release. Known operational limitations remain;
+> Known operational limitations remain;
 > read [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) before installing it.
 
 ## Features
 
 - PS4 (`CUSA...`) and PS5 (`PPSA...`) games;
 - active time, Home/pause time, sessions and today/week/month periods;
-- best-effort game-title lookup from system metadata;
+- best-effort game-title and local-cover lookup from system metadata;
 - reversible “Completed” marks;
 - CRC-protected primary state and a previous state generation;
 - dashboard backup and restore;
@@ -94,7 +94,7 @@ http://<PS5_IP>:12888/
 
 LAN clients are read-only, but they can still read game history and session
 times. Do not forward the port to the Internet or expose it to an untrusted
-network. The v1.0 server has no authentication.
+network. The current server has no authentication.
 
 ## Console data
 
@@ -118,9 +118,11 @@ dashboard backup before an update or a test session.
 4. Wait for the automatic-backup and carrier-application messages.
 5. Restart the runtime when the dashboard asks you to.
 
-Updates are not yet guaranteed to roll back every partial-failure case. Keep a
-separate copy of `/data/ps5-activity` and do not update during unstable
-exploit/runtime conditions.
+The dashboard creates an automatic backup before applying an update. The
+updater writes all discovered etaHEN, PLK/ShadowMount+ and USB-autoloader
+runtime copies, and only records the carrier as applied after a runtime target
+was successfully written. Keep a separate copy of `/data/ps5-activity` for
+recovery from power loss or unstable exploit/runtime conditions.
 
 ## Building from source
 
@@ -151,9 +153,10 @@ node --check release-build/build-carrier.js
 
 ## Compatibility
 
-The primary hardware test was performed on firmware 4.50. Behavior on other
-firmware versions and etaHEN or SM+/PLK releases must be verified separately.
-Do not expand the support matrix based on assumptions.
+The primary hardware test was performed on firmware 4.50. Foreground session
+tracking through `SceShellCoreUtilAppFocus` was also user-validated on firmware
+11.60 with ShadowMount+/PLK. Other runtime combinations must be verified
+separately.
 
 ## Documentation
 

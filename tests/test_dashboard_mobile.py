@@ -18,6 +18,10 @@ class DashboardMobileContractTests(unittest.TestCase):
         self.assertIn('fetch("/api/access?', html)
         self.assertIn('pageIsLoopback', html)
         self.assertIn('lanReadOnly=!pageIsLoopback()', html)
+        self.assertIn('/api/game-icon?title_id=', html)
+        self.assertIn('class="game-cover"', html)
+        self.assertNotIn('id="settingsFirmware" type="number" min="0.01" max="99.99" step="0.01" inputmode="decimal" placeholder="4.50" required', html)
+        self.assertIn('data.timezone_source!=="config"', html)
 
     def test_script_dom_references_are_present(self):
         html = (ROOT / "dashboard/index.html").read_text(encoding="utf-8")

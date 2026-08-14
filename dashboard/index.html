@@ -89,7 +89,14 @@
     th.num,td.num { text-align:center; padding-left:4px; padding-right:4px }
     td { border-top:1px solid rgba(109,151,220,.11); padding:17px 8px; font-size:15px;
       vertical-align:middle; overflow:hidden }
-    .game { display:block; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:650 }
+    .game-cell { display:flex; align-items:center; gap:10px; min-width:0 }
+    .game-cover { width:46px; height:46px; flex:none; position:relative; overflow:hidden;
+      border-radius:9px; border:1px solid rgba(99,153,235,.2); background:#07162e }
+    .game-cover img { position:absolute; inset:0; z-index:1; width:100%; height:100%; object-fit:cover }
+    .game-cover span { width:100%; height:100%; display:grid; place-items:center; color:#70ddff;
+      background:linear-gradient(145deg,#123b67,#07162e); font-size:9px; font-weight:800 }
+    .game-cover span.ps4 { color:#d6a6ff; background:linear-gradient(145deg,#472764,#171029) }
+    .game { display:block; min-width:0; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:650 }
     .game small { display:block; color:var(--muted); margin-top:5px; font-size:12px; font-weight:500 }
     .platform { display:inline-block; padding:3px 6px; border-radius:5px; background:#137cff22;
       color:#75b6ff; font-size:10px; margin-right:7px }
@@ -360,7 +367,7 @@
     </section>
 
     <footer class="footer">
-      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.42.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
+      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.43.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
       <div class="foot-status"><span id="updated">Обновлено: —</span><span><i class="dot" style="display:inline-block;margin-right:7px"></i><span data-i18n="localData">локальные данные</span></span></div>
     </footer>
   </main>
@@ -370,7 +377,7 @@
       <p id="settingsIntro">Эти значения Playlog использует для всех календарных расчётов.</p>
       <div class="form-grid">
         <label class="field"><span id="offsetLabel">Смещение от UTC, минут</span><input id="settingsOffset" type="number" min="-720" max="840" step="15" required></label>
-        <label class="field"><span id="firmwareLabel">Прошивка</span><input id="settingsFirmware" type="number" min="0.01" max="99.99" step="0.01" inputmode="decimal" placeholder="4.50" required></label>
+        <label class="field"><span id="firmwareLabel">Прошивка</span><input id="settingsFirmware" type="number" min="0.01" max="99.99" step="0.01" inputmode="decimal" placeholder="4.50"></label>
         <label class="field wide"><span id="timezoneLabel">Название часового пояса</span><input id="settingsTimezone" maxlength="63" placeholder="Europe/Moscow" required></label>
       </div>
       <div class="settings-error" id="settingsError"></div>
@@ -671,7 +678,7 @@
       $("trackerVersion").textContent=data.system?.tracker_version || "—";
       $("timezoneName").textContent=data.timezone || "—";
       $("dashboardHost").textContent=data.system?.console_ip || location.hostname || "—";
-      if(!lanReadOnly && !settingsPrompted && (data.timezone_source!=="config" || data.system?.firmware==="unknown")) {
+      if(!lanReadOnly && !settingsPrompted && data.timezone_source!=="config") {
         settingsPrompted=true;
         showSettings(data);
       }
@@ -688,7 +695,10 @@
         const done = isCompleted(g);
         const scopedTime=gameScope==="today"?g.today_active_seconds:g.active_seconds;
         const scopedSessions=gameScope==="today"?g.today_session_count:g.session_count;
-        return `<tr><td><div class="game"><span class="platform ${esc((g.platform||"").toLowerCase())}">${esc(g.platform || "—")}</span>${esc(g.name || g.title_id)}<small>${esc(g.title_id)}</small></div></td>
+        const platform=esc((g.platform||"").toLowerCase());
+        const titleId=esc(g.title_id||"");
+        const iconUrl=`/api/game-icon?title_id=${encodeURIComponent(g.title_id||"")}`;
+        return `<tr><td><div class="game-cell"><div class="game-cover"><img src="${iconUrl}" loading="lazy" alt="" onerror="this.style.display='none'"><span class="${platform}">${esc(g.platform||"—")}</span></div><div class="game"><span class="platform ${platform}">${esc(g.platform || "—")}</span>${esc(g.name || g.title_id)}<small>${titleId}</small></div></div></td>
           <td class="num">${duration(scopedTime)}</td><td class="num">${scopedSessions || 0}</td><td class="num">${shortDate(g.last_played_at_local || g.last_played_at)}</td>
           <td class="num"><button type="button" class="completion ${done?"done":""}" data-complete="${esc(g.title_id)}">${done?t("undoComplete"):t("markComplete")}</button></td></tr>`;
       }).join("") || `<tr><td colspan="5">${t("noGames")}</td></tr>`;
@@ -821,10 +831,11 @@
       event.preventDefault();
       const offset=Number($("settingsOffset").value);
       const timezone=$("settingsTimezone").value.trim();
-      const firmwareNumber=Number(String($("settingsFirmware").value).replace(",","."));
-      const firmware=Number.isFinite(firmwareNumber) ? firmwareNumber.toFixed(2) : "";
+      const firmwareText=String($("settingsFirmware").value).trim().replace(",",".");
+      const firmwareNumber=firmwareText ? Number(firmwareText) : NaN;
+      const firmware=firmwareText && Number.isFinite(firmwareNumber) ? firmwareNumber.toFixed(2) : "unknown";
       if(!Number.isInteger(offset) || offset < -720 || offset > 840 || !timezone
-         || !firmware || firmwareNumber < 0.01 || firmwareNumber > 99.99) {
+         || (firmwareText && (firmwareNumber < 0.01 || firmwareNumber > 99.99))) {
         $("settingsError").textContent=lang==="ru"?"Проверьте введённые значения.":"Check the entered values.";
         return;
       }

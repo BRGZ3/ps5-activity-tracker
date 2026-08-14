@@ -8,8 +8,8 @@ include plugin.mk
 
 ELF := activity-probe.elf
 LITE_ELF := activity-probe-lite.elf
-CFLAGS := -Wall -Wextra -Werror -O2 -DPROBE_VERSION=\"0.4.10-beta.2\" \
-	-DTRACKER_VERSION=\"1.42\" -DDASHBOARD_VERSION=\"1.42.0\"
+CFLAGS := -Wall -Wextra -Werror -O2 -DPROBE_VERSION=\"0.5.0\" \
+	-DTRACKER_VERSION=\"1.43\" -DDASHBOARD_VERSION=\"1.43.0\"
 LITE_CFLAGS := -Wall -Wextra -Werror -O2 \
 	-DPROBE_VERSION=\"compat-0.1\" -DTRACKER_VERSION=\"compat-0.1\" \
 	-DDASHBOARD_VERSION=\"compat-0.1\" -DLITE_INSTALLER

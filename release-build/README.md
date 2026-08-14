@@ -1,4 +1,4 @@
-# Media PKG v1.0 build
+# Media PKG build
 
 [Русская версия](README.ru.md)
 
@@ -36,7 +36,7 @@ If the directory does not contain the source checkout, the builder uses
 `$LIBPROSPEROPKG_DIR/LibProsperoPkg.dll`.
 
 For a reproducible publication, pin the LibProsperoPKG revision and Docker
-image digest. v1.0 keeps them overrideable through Make variables so the build
+image digest. They remain overrideable through Make variables so the build
 can run on the maintainer's machine.
 
 Do not commit `dist/`, `builder/bin/`, `builder/obj/`, `icon0.png` or ELF files.

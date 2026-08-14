@@ -13,7 +13,7 @@ var result = ProsperoPackageBuilder.Build(new ProsperoBuildOptions
     ContentId = contentId,
     TitleId = "ACTV00002",
     Title = "Playlog",
-    Version = "01.48",
+    Version = "01.49",
     GenerateParamJsonIfMissing = false,
     LicenseFree = true
 }, Console.WriteLine);

@@ -2,7 +2,7 @@
 
 [Русская версия](KNOWN_LIMITATIONS.ru.md)
 
-This first public v1.0 release still has operational limitations. It does not
+This release still has operational limitations. It does not
 guarantee that statistics survive a kernel panic, power loss, two concurrently
 running runtimes or every failed update scenario.
 
@@ -15,12 +15,14 @@ Before the first launch:
 
 Current limitations:
 
-- primary hardware testing was performed on firmware 4.50;
+- primary hardware testing was performed on firmware 4.50; session tracking
+  was additionally user-tested on firmware 11.60 with ShadowMount+/PLK;
+- local covers depend on readable console metadata and may be absent;
 - PS5 portable games may end a session only when another game is launched or
   the runtime is restarted;
 - a title may be missing and appear as `PPSA...` or `CUSA...`;
 - statistics are not separated by console profile;
-- error diagnostics and extended analytics are not included in v1.0;
+- error diagnostics and extended analytics are not included yet;
 - timezone uses a `Europe/Moscow` fallback before configuration;
 - raw `probe-events.jsonl` is not rotated automatically.
 
