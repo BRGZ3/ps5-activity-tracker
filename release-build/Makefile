@@ -3,8 +3,8 @@ IMAGE ?= mcr.microsoft.com/dotnet/sdk:10.0
 OUTPUT := dist
 PS5_PAYLOAD_SDK ?= /tmp/ps5-payload-sdk-install
 LLVM_CONFIG ?= /opt/homebrew/opt/llvm@18/bin/llvm-config
-PACKAGE_VERSION ?= 1.49
-TRACKER_VERSION ?= 1.43
+PACKAGE_VERSION ?= 1.50
+TRACKER_VERSION ?= 1.44
 DASHBOARD_VERSION ?= 1.43.0
 
 .PHONY: all clean

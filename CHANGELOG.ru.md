@@ -2,6 +2,17 @@
 
 [English version](CHANGELOG.md)
 
+## 1.1.1-beta.1 — 2026-08-20
+
+- добавлен ранний контроль Rest Mode и выключения через
+  `SceSystemStateMgrStatus` и `SceSystemStateMgrInfo` на firmware 4.50;
+- перед suspend статистика сохраняется, HTTP-сервер, AppFocus и `/dev/klog`
+  штатно закрываются;
+- PID-маркер заменён на advisory `flock`, поэтому повторный автозапуск etaHEN
+  после resume не создаёт второй экземпляр;
+- для A/B-теста добавлен отдельный etaHEN `.plugin`; raw ELF остаётся вариантом
+  для ShadowMount+/PLK.
+
 ## 1.1.0 — 2026-08-14
 
 - объединены отслеживание через `SceShellCoreUtilAppFocus` и старый fallback

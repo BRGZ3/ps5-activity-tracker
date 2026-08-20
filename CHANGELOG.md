@@ -2,6 +2,17 @@
 
 [Русская версия](CHANGELOG.ru.md)
 
+## 1.1.1-beta.1 — 2026-08-20
+
+- monitors `SceSystemStateMgrStatus` and `SceSystemStateMgrInfo` for early
+  Rest Mode and shutdown transitions on firmware 4.50;
+- checkpoints statistics and cleanly stops the HTTP server, AppFocus monitor
+  and `/dev/klog` reader before the console enters suspend;
+- replaces the PID marker with an advisory `flock`, preventing a second
+  etaHEN autostart instance after resume;
+- provides an optional etaHEN `.plugin` artifact for A/B testing; the raw ELF
+  remains the ShadowMount+/PLK artifact.
+
 ## 1.1.0 — 2026-08-14
 
 - combines `SceShellCoreUtilAppFocus` tracking with the legacy `/dev/klog`

@@ -8,8 +8,8 @@ include plugin.mk
 
 ELF := activity-probe.elf
 LITE_ELF := activity-probe-lite.elf
-CFLAGS := -Wall -Wextra -Werror -O2 -DPROBE_VERSION=\"0.5.0\" \
-	-DTRACKER_VERSION=\"1.43\" -DDASHBOARD_VERSION=\"1.43.0\"
+CFLAGS := -Wall -Wextra -Werror -O2 -DPROBE_VERSION=\"0.5.1-beta.1\" \
+	-DTRACKER_VERSION=\"1.44\" -DDASHBOARD_VERSION=\"1.43.0\"
 LITE_CFLAGS := -Wall -Wextra -Werror -O2 \
 	-DPROBE_VERSION=\"compat-0.1\" -DTRACKER_VERSION=\"compat-0.1\" \
 	-DDASHBOARD_VERSION=\"compat-0.1\" -DLITE_INSTALLER
@@ -18,9 +18,9 @@ LITE_CFLAGS := -Wall -Wextra -Werror -O2 \
 
 all: $(ELF)
 
-$(ELF): main.c app_focus_monitor.c app_focus_monitor.h tracker.c tracker.h http_server.c http_server.h \
+$(ELF): main.c app_focus_monitor.c app_focus_monitor.h power_monitor.c power_monitor.h tracker.c tracker.h http_server.c http_server.h \
 		offline_update.c offline_update.h
-	$(CC) $(CFLAGS) -o $@ main.c app_focus_monitor.c tracker.c http_server.c offline_update.c
+	$(CC) $(CFLAGS) -o $@ main.c app_focus_monitor.c power_monitor.c tracker.c http_server.c offline_update.c
 
 $(LITE_ELF): lite_main.c tracker.c tracker.h http_server.c http_server.h \
 		offline_update.c offline_update.h

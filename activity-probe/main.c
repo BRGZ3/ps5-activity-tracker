@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -16,6 +17,7 @@
 #include "tracker.h"
 #include "http_server.h"
 #include "app_focus_monitor.h"
+#include "power_monitor.h"
 
 #define DATA_DIR "/data/ps5-activity"
 #define EVENT_PATH DATA_DIR "/probe-events.jsonl"
@@ -55,6 +57,15 @@ static char pending_title[TITLE_ID_LENGTH + 1];
 static char foreground_title[TITLE_ID_LENGTH + 1];
 static uint32_t foreground_app_id;
 static volatile sig_atomic_t stop_requested;
+static volatile sig_atomic_t received_signal;
+static int instance_fd = -1;
+static char stop_reason[128] = "runtime stop";
+
+static void
+handle_signal(int signal_number) {
+    received_signal = signal_number;
+    stop_requested = 1;
+}
 
 static int
 notify(const char *format, ...) {
@@ -562,13 +573,34 @@ handle_line(char *line) {
 
 static int
 acquire_single_instance(void) {
-    FILE *pid_file = fopen(PID_PATH, "w");
-    if(!pid_file) {
+    char pid[32];
+    int length;
+    instance_fd = open(PID_PATH, O_RDWR | O_CREAT, 0644);
+    if(instance_fd < 0 || flock(instance_fd, LOCK_EX | LOCK_NB) != 0) {
+        if(instance_fd >= 0) close(instance_fd);
+        instance_fd = -1;
         return -1;
     }
-    fprintf(pid_file, "%d\n", getpid());
-    fclose(pid_file);
+    length = snprintf(pid, sizeof(pid), "%d\n", getpid());
+    if(length <= 0 || ftruncate(instance_fd, 0) != 0
+       || lseek(instance_fd, 0, SEEK_SET) < 0
+       || write(instance_fd, pid, (size_t)length) != (ssize_t)length
+       || fsync(instance_fd) != 0) {
+        close(instance_fd);
+        instance_fd = -1;
+        return -1;
+    }
     return 0;
+}
+
+static void
+release_single_instance(void) {
+    if(instance_fd >= 0) {
+        flock(instance_fd, LOCK_UN);
+        close(instance_fd);
+        instance_fd = -1;
+    }
+    unlink(PID_PATH);
 }
 
 int
@@ -580,8 +612,10 @@ main(void) {
     int klog_fd;
     int notify_result;
     int focus_available;
+    int power_available;
     char notify_status[64];
     app_focus_monitor_t focus_monitor;
+    power_monitor_t power_monitor;
     struct timespec startup_pause = {STARTUP_DELAY_SECONDS, 0};
 
     if(mkdir(DATA_DIR, 0755) < 0 && errno != EEXIST) {
@@ -589,17 +623,7 @@ main(void) {
                strerror(errno));
         return 1;
     }
-    /* Stop an older Playlog plugin/ELF before loading this generation.  Both
-       versions use the same state files and concurrent writers can reset the
-       history even when each file is individually CRC-valid. */
-    {
-        FILE *stop_file = fopen(STOP_PATH, "wb");
-        if(stop_file) fclose(stop_file);
-    }
     nanosleep(&startup_pause, NULL);
-    unlink(STOP_PATH);
-    unlink("/data/etaHEN/plugins/ps5-activity-tracker.plugin");
-    unlink("/data/etaHEN/plugins/ps5-activity-tracker.plugin.auto_start");
     unlink("/data/etaHEN/plugins/ps5-activity-tracker.elf");
     unlink("/data/etaHEN/plugins/ps5-activity-tracker.elf.auto_start");
     if(acquire_single_instance() != 0) {
@@ -607,6 +631,9 @@ main(void) {
         return 1;
     }
     unlink(STOP_PATH);
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+    signal(SIGHUP, handle_signal);
     {
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
@@ -616,7 +643,7 @@ main(void) {
     event_file = fopen(EVENT_PATH, "a");
     if(!event_file) {
         notify("Playlog: cannot open event log (%s)", strerror(errno));
-        unlink(PID_PATH);
+        release_single_instance();
         return 1;
     }
     if(dashboard_http_start() == 0) {
@@ -632,13 +659,17 @@ main(void) {
         notify("Playlog: cannot open /dev/klog (%s)", strerror(errno));
         dashboard_http_stop();
         fclose(event_file);
-        unlink(PID_PATH);
+        release_single_instance();
         return 1;
     }
     focus_available = app_focus_monitor_open(&focus_monitor) == 0;
     write_event(focus_available ? "app_focus_monitor" :
                 "app_focus_monitor_unavailable", NULL, 0,
                 "SceShellCoreUtilAppFocus", NULL);
+    power_available = power_monitor_open(&power_monitor) == 0;
+    write_event(power_available ? "power_monitor" :
+                "power_monitor_unavailable", NULL, 0,
+                "SceSystemStateMgrInfo+SceSystemStateMgrStatus", NULL);
 
     write_event("probe_start", NULL, 0, "version=" PROBE_VERSION, NULL);
     notify_result = notify("Playlog %s started", TRACKER_VERSION);
@@ -682,20 +713,39 @@ main(void) {
                 handle_focus_transition(old_app_id, new_app_id, source);
             }
         }
+        if(power_available) {
+            const char *reason = NULL;
+            if(power_monitor_poll(&power_monitor, &reason) > 0) {
+                snprintf(stop_reason, sizeof(stop_reason), "%s",
+                         reason ? reason : "system power transition");
+                write_event("suspend_prepare", foreground_title,
+                            foreground_app_id, stop_reason, NULL);
+                stop_requested = 1;
+            }
+        }
         {
             struct timespec now;
             struct timespec pause = {0, IDLE_POLL_NANOSECONDS};
             clock_gettime(CLOCK_REALTIME, &now);
             tracker_tick((uint64_t)now.tv_sec * 1000
                          + (uint64_t)now.tv_nsec / 1000000);
-            if(access(STOP_PATH, F_OK) == 0) stop_requested = 1;
+            if(access(STOP_PATH, F_OK) == 0) {
+                snprintf(stop_reason, sizeof(stop_reason), "stop file");
+                stop_requested = 1;
+            }
             if(bytes_read <= 0 && !stop_requested) nanosleep(&pause, NULL);
         }
     }
 
+    if(received_signal) {
+        snprintf(stop_reason, sizeof(stop_reason), "signal=%d",
+                 (int)received_signal);
+    } else if(!stop_requested) {
+        snprintf(stop_reason, sizeof(stop_reason), "%s",
+                 bytes_read < 0 ? strerror(errno) : "klog EOF");
+    }
     write_event("probe_stop", foreground_title, foreground_app_id,
-                stop_requested ? "stop file" :
-                (bytes_read < 0 ? strerror(errno) : "klog EOF"), NULL);
+                stop_reason, NULL);
     {
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
@@ -704,8 +754,9 @@ main(void) {
     }
     dashboard_http_stop();
     app_focus_monitor_close(&focus_monitor);
+    power_monitor_close(&power_monitor);
     close(klog_fd);
     fclose(event_file);
-    unlink(PID_PATH);
+    release_single_instance();
     return bytes_read < 0 ? 1 : 0;
 }

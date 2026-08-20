@@ -40,6 +40,8 @@ def main() -> int:
         relative = path.relative_to(ROOT)
         if not path.is_file():
             continue
+        if relative.parts and relative.parts[0] == ".git":
+            continue
         normalized = "/".join(relative.parts)
         if (
             relative.parts
@@ -54,7 +56,11 @@ def main() -> int:
             failures.append(f"private root file: {relative}")
         if any(part in normalized for part in FORBIDDEN_PARTS):
             failures.append(f"generated/private path: {relative}")
-        if path.stat().st_size > 2_000_000 and relative.parts[0] != "dashboard":
+        if (
+            path.stat().st_size > 2_000_000
+            and relative.parts[0] != "dashboard"
+            and relative.name != "Playlog-preview.png"
+        ):
             failures.append(f"unexpected large file: {relative}")
         if path.suffix.lower() in {".md", ".json", ".js", ".c", ".h", ".py"}:
             try:
