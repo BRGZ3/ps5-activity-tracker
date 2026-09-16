@@ -46,6 +46,7 @@ class DashboardHttpTests(unittest.TestCase):
                     str(ROOT / "activity-probe"),
                     str(ROOT / "tests/http_server_harness.c"),
                     str(ROOT / "activity-probe/http_server.c"),
+                    str(ROOT / "activity-probe/game_metadata.c"),
                     "-pthread",
                     "-o",
                     str(binary),
@@ -80,6 +81,12 @@ class DashboardHttpTests(unittest.TestCase):
                         response.headers["Cache-Control"],
                         "public, max-age=86400",
                     )
+                shutil.rmtree(appmeta)
+                with urllib.request.urlopen(
+                    f"http://127.0.0.1:{port}/api/game-icon"
+                    "?title_id=PPSA02177", timeout=2
+                ) as response:
+                    self.assertEqual(response.read(), icon)
                 request = urllib.request.Request(
                     f"http://127.0.0.1:{port}/api/completed"
                     "?title_id=PPSA02177&completed=1",

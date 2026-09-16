@@ -53,8 +53,17 @@ Runtime ждёт пять секунд до установки выбранно�
 /data/ps5-activity/tracker-state.prev.bin
 /data/ps5-activity/completed-state.bin
 /data/ps5-activity/config.json
+/data/ps5-activity/covers/
 /data/ps5-activity/backups/
 ```
+
+Общее время, сессии, отметка прохождения, название и сохранённая обложка
+остаются в истории после удаления игры с консоли. В dashboard такая строка
+помечается как `в истории`.
+
+Playlog также отслеживает PID `SceShellUI`. Если оболочка перезапустилась, а
+runtime продолжает работать, устаревший AppFocus handle закрывается и
+открывается заново.
 
 Путь `probe-events.jsonl` может присутствовать и растёт без ротации.
 Не переносите его в публичный issue вместе с пользовательской историей.

@@ -26,10 +26,15 @@ class ConsoleTrackerTests(unittest.TestCase):
                 "-std=c11",
                 "-D_POSIX_C_SOURCE=200809L",
                 f'-DTRACKER_DATA_DIR="{temporary}"',
+                f'-DUSER_APPMETA_DIR="{temporary}/appmeta"',
+                f'-DSYSTEM_APPMETA_DIR="{temporary}/system-appmeta"',
+                f'-DUSER_APP_DIR="{temporary}/user-app"',
+                f'-DSYSTEM_APP_DIR="{temporary}/system-app"',
                 "-I",
                 str(ROOT / "activity-probe"),
                 str(ROOT / "tests" / source),
                 str(ROOT / "activity-probe/tracker.c"),
+                str(ROOT / "activity-probe/game_metadata.c"),
                 "-o",
                 str(output),
             ],
@@ -116,10 +121,15 @@ class ConsoleTrackerTests(unittest.TestCase):
                     "-std=c11",
                     "-D_POSIX_C_SOURCE=200809L",
                     f'-DTRACKER_DATA_DIR="{temporary}"',
+                    f'-DUSER_APPMETA_DIR="{temporary}/appmeta"',
+                    f'-DSYSTEM_APPMETA_DIR="{temporary}/system-appmeta"',
+                    f'-DUSER_APP_DIR="{temporary}/user-app"',
+                    f'-DSYSTEM_APP_DIR="{temporary}/system-app"',
                     "-I",
                     str(ROOT / "activity-probe"),
                     str(ROOT / "tests/tracker_harness.c"),
                     str(ROOT / "activity-probe/tracker.c"),
+                    str(ROOT / "activity-probe/game_metadata.c"),
                     "-o",
                     str(output),
                 ],
@@ -155,6 +165,33 @@ class ConsoleTrackerTests(unittest.TestCase):
         )
         self.assertEqual(summary["sessions"][0]["is_open"], 0)
         self.assertEqual(summary["health"]["current_activity"], None)
+
+    def test_removed_game_remains_in_history(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            appmeta = Path(temporary) / "appmeta" / "PPSA02177"
+            appmeta.mkdir(parents=True)
+            (appmeta / "icon0.png").write_bytes(b"PNG-HISTORY")
+            summary = self._run_harness(
+                temporary, "tracker_history_harness.c"
+            )
+            self.assertTrue(summary["games"][0]["installed"])
+            shutil.rmtree(appmeta)
+            subprocess.run(
+                [str(Path(temporary) / "tracker-test")], check=True
+            )
+            summary = json.loads(
+                (Path(temporary) / "summary.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(summary["totals"]["games"], 1)
+            self.assertEqual(summary["games"][0]["name"], "History Game")
+            self.assertAlmostEqual(
+                summary["games"][0]["active_seconds"], 60
+            )
+            self.assertIsNotNone(summary["games"][0]["completed_at"])
+            self.assertFalse(summary["games"][0]["installed"])
+            self.assertTrue(summary["games"][0]["history_retained"])
 
     def test_backup_is_verified_and_restore_creates_safety_copy(self):
         with tempfile.TemporaryDirectory() as temporary:

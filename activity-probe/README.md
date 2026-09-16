@@ -53,8 +53,16 @@ The release uses one mode at a time. Do not leave an old
 /data/ps5-activity/tracker-state.prev.bin
 /data/ps5-activity/completed-state.bin
 /data/ps5-activity/config.json
+/data/ps5-activity/covers/
 /data/ps5-activity/backups/
 ```
+
+Game totals, sessions, completion marks, names and cached covers remain in the
+history when a game is removed from the console. The dashboard labels such a
+row as `in history`.
+
+Playlog also watches the `SceShellUI` PID. If the shell is replaced while the
+runtime remains alive, the stale AppFocus handle is closed and reopened.
 
 `probe-events.jsonl` may also be present and grows without rotation.
 Do not attach it to a public issue together with personal history.

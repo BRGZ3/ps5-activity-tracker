@@ -17,7 +17,9 @@
 #include "tracker.h"
 #include "http_server.h"
 #include "app_focus_monitor.h"
+#include "shell_ui_monitor.h"
 #include "power_monitor.h"
+#include "game_metadata.h"
 
 #define DATA_DIR "/data/ps5-activity"
 #define EVENT_PATH DATA_DIR "/probe-events.jsonl"
@@ -33,6 +35,7 @@
 #define ENABLE_DIAGNOSTIC_CAPTURE 0
 #define STARTUP_DELAY_SECONDS 5
 #define IDLE_POLL_NANOSECONDS 100000000L
+#define FOCUS_REATTACH_INTERVAL_MS 2000ULL
 
 #ifndef PROBE_VERSION
 #define PROBE_VERSION "dev"
@@ -503,6 +506,7 @@ handle_focus_transition(uint32_t old_app_id, uint32_t new_app_id,
     }
     if(new_title && old_app_id != new_app_id
        && foreground_app_id != new_app_id) {
+        game_metadata_cache_icon(new_title);
         if(load_title_name(new_title, title_name)) {
             write_event("metadata", new_title, new_app_id, NULL, title_name);
         }
@@ -540,6 +544,7 @@ handle_line(char *line) {
         || strstr(line, "SceneQ : Loaded["))
        && extract_title_id(line, title_id)) {
         memcpy(pending_title, title_id, sizeof(pending_title));
+        game_metadata_cache_icon(title_id);
         write_event("launch_detected", title_id, 0, line, NULL);
         if(strstr(line, "-> [SplashScreen.")
            && load_title_name(title_id, title_name)) {
@@ -613,8 +618,11 @@ main(void) {
     int notify_result;
     int focus_available;
     int power_available;
+    int focus_retry_reported = 0;
+    uint64_t next_focus_retry_ms = 0;
     char notify_status[64];
     app_focus_monitor_t focus_monitor;
+    shell_ui_monitor_t shell_monitor;
     power_monitor_t power_monitor;
     struct timespec startup_pause = {STARTUP_DELAY_SECONDS, 0};
 
@@ -666,6 +674,17 @@ main(void) {
     write_event(focus_available ? "app_focus_monitor" :
                 "app_focus_monitor_unavailable", NULL, 0,
                 "SceShellCoreUtilAppFocus", NULL);
+    shell_ui_monitor_init(&shell_monitor);
+    {
+        struct timespec now;
+        pid_t old_pid = 0;
+        pid_t new_pid = 0;
+        clock_gettime(CLOCK_REALTIME, &now);
+        shell_ui_monitor_poll(
+            &shell_monitor,
+            (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000,
+            &old_pid, &new_pid);
+    }
     power_available = power_monitor_open(&power_monitor) == 0;
     write_event(power_available ? "power_monitor" :
                 "power_monitor_unavailable", NULL, 0,
@@ -677,6 +696,8 @@ main(void) {
     write_event("notification_result", NULL, 0, notify_status, NULL);
 
     while(!stop_requested) {
+        struct timespec loop_now;
+        uint64_t now_ms;
         bytes_read = read(klog_fd, read_buffer, sizeof(read_buffer));
         if(bytes_read > 0) {
             for(ssize_t i = 0; i < bytes_read; i++) {
@@ -701,16 +722,72 @@ main(void) {
                   && errno != EWOULDBLOCK && errno != EINTR) {
             break;
         }
+        clock_gettime(CLOCK_REALTIME, &loop_now);
+        now_ms = (uint64_t)loop_now.tv_sec * 1000
+            + (uint64_t)loop_now.tv_nsec / 1000000;
+        {
+            pid_t old_pid = 0;
+            pid_t new_pid = 0;
+            int shell_result = shell_ui_monitor_poll(
+                &shell_monitor, now_ms, &old_pid, &new_pid);
+            if(shell_result > 0) {
+                char source[128];
+                snprintf(source, sizeof(source), "pid=%d -> pid=%d",
+                         (int)old_pid, (int)new_pid);
+                write_event(new_pid ? "shell_ui_restarted" : "shell_ui_stopped",
+                            foreground_title, foreground_app_id, source, NULL);
+                if(foreground_title[0]) {
+                    write_event("background", foreground_title,
+                                foreground_app_id,
+                                "sceShellUI process changed", NULL);
+                }
+                foreground_title[0] = '\0';
+                foreground_app_id = 0;
+                pending_title[0] = '\0';
+                mapping_count = 0;
+                if(focus_available) app_focus_monitor_close(&focus_monitor);
+                focus_available = 0;
+                focus_retry_reported = 0;
+                next_focus_retry_ms = 0;
+            }
+        }
         if(focus_available) {
             uint32_t old_app_id;
             uint32_t new_app_id;
-            if(app_focus_monitor_poll(
-                   &focus_monitor, &old_app_id, &new_app_id) > 0) {
+            int focus_result = app_focus_monitor_poll(
+                &focus_monitor, &old_app_id, &new_app_id);
+            if(focus_result > 0) {
                 char source[128];
                 snprintf(source, sizeof(source),
                          "[SceShellCoreUtilAppFocus] 0x%08x -> 0x%08x",
                          old_app_id, new_app_id);
                 handle_focus_transition(old_app_id, new_app_id, source);
+            } else if(focus_result < 0) {
+                write_event("app_focus_stale", foreground_title,
+                            foreground_app_id,
+                            "event flag poll failed repeatedly", NULL);
+                app_focus_monitor_close(&focus_monitor);
+                focus_available = 0;
+                focus_retry_reported = 0;
+                next_focus_retry_ms = now_ms + FOCUS_REATTACH_INTERVAL_MS;
+            }
+        }
+        if(!focus_available
+           && (!shell_monitor.has_sample
+               || shell_ui_monitor_pid(&shell_monitor) > 0)
+           && now_ms >= next_focus_retry_ms) {
+            focus_available = app_focus_monitor_open(&focus_monitor) == 0;
+            if(focus_available) {
+                write_event("app_focus_reattached", NULL, 0,
+                            "SceShellCoreUtilAppFocus", NULL);
+                focus_retry_reported = 0;
+            } else {
+                if(!focus_retry_reported) {
+                    write_event("app_focus_reattach_pending", NULL, 0,
+                                "waiting for sceShellUI event flag", NULL);
+                    focus_retry_reported = 1;
+                }
+                next_focus_retry_ms = now_ms + FOCUS_REATTACH_INTERVAL_MS;
             }
         }
         if(power_available) {
@@ -724,11 +801,8 @@ main(void) {
             }
         }
         {
-            struct timespec now;
             struct timespec pause = {0, IDLE_POLL_NANOSECONDS};
-            clock_gettime(CLOCK_REALTIME, &now);
-            tracker_tick((uint64_t)now.tv_sec * 1000
-                         + (uint64_t)now.tv_nsec / 1000000);
+            tracker_tick(now_ms);
             if(access(STOP_PATH, F_OK) == 0) {
                 snprintf(stop_reason, sizeof(stop_reason), "stop file");
                 stop_requested = 1;

@@ -6,6 +6,7 @@
 typedef struct app_focus_monitor {
     intptr_t handle;
     uint32_t last_app_id;
+    unsigned consecutive_errors;
     int is_open;
     int has_last_app_id;
 } app_focus_monitor_t;

@@ -6,6 +6,7 @@
 #define APP_FOCUS_FLAG_NAME "SceShellCoreUtilAppFocus"
 #define EVENT_FLAG_ALL_BITS UINT64_MAX
 #define EVENT_FLAG_WAITMODE_OR 2u
+#define MAX_CONSECUTIVE_POLL_ERRORS 3u
 
 int sceKernelOpenEventFlag(intptr_t *event_flag, const char *name);
 int sceKernelPollEventFlag(intptr_t event_flag, uint64_t bit_pattern,
@@ -51,7 +52,12 @@ app_focus_monitor_poll(app_focus_monitor_t *monitor,
 
     if(!monitor || !monitor->is_open || !old_app_id || !new_app_id) return -1;
     result = read_app_id(monitor, &current_app_id);
-    if(result < 0) return 0;
+    if(result < 0) {
+        monitor->consecutive_errors++;
+        return monitor->consecutive_errors >= MAX_CONSECUTIVE_POLL_ERRORS
+            ? -1 : 0;
+    }
+    monitor->consecutive_errors = 0;
     if(!monitor->has_last_app_id) {
         monitor->last_app_id = current_app_id;
         monitor->has_last_app_id = 1;
@@ -73,4 +79,5 @@ app_focus_monitor_close(app_focus_monitor_t *monitor) {
     monitor->handle = -1;
     monitor->is_open = 0;
     monitor->has_last_app_id = 0;
+    monitor->consecutive_errors = 0;
 }

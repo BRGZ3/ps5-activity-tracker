@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "offline_update.h"
 #include "tracker.h"
+#include "game_metadata.h"
 
 #include <arpa/inet.h>
 #include <errno.h>
@@ -128,37 +129,8 @@ send_file(int client, const char *path, const char *content_type) {
 }
 
 static int
-valid_game_title_id(const char *title_id) {
-    if(!title_id || strlen(title_id) != 9
-       || (strncmp(title_id, "CUSA", 4) != 0
-           && strncmp(title_id, "PPSA", 4) != 0)) {
-        return 0;
-    }
-    for(size_t i = 4; i < 9; i++) {
-        if(title_id[i] < '0' || title_id[i] > '9') return 0;
-    }
-    return 1;
-}
-
-static int
 find_game_icon(const char *title_id, char output[320]) {
-    static const char *formats[] = {
-        USER_APPMETA_DIR "/%s/icon0.png",
-        SYSTEM_APPMETA_DIR "/%s/icon0.png",
-        USER_APP_DIR "/%s/icon0.png",
-        USER_APP_DIR "/%s/sce_sys/icon0.png",
-        SYSTEM_APP_DIR "/%s/sce_sys/icon0.png"
-    };
-    struct stat info;
-    if(!valid_game_title_id(title_id)) return -1;
-    for(size_t i = 0; i < sizeof(formats) / sizeof(formats[0]); i++) {
-        int written = snprintf(output, 320, formats[i], title_id);
-        if(written > 0 && written < 320 && stat(output, &info) == 0
-           && S_ISREG(info.st_mode) && info.st_size > 0) {
-            return 0;
-        }
-    }
-    return -1;
+    return game_metadata_find_icon(title_id, output, 320);
 }
 
 static int

@@ -2,6 +2,17 @@
 
 [Русская версия](CHANGELOG.ru.md)
 
+## 1.2.0-beta.1 — 2026-09-16
+
+- watches the `SceShellUI` process identity and reopens
+  `SceShellCoreUtilAppFocus` after a ShellUI restart;
+- treats three consecutive AppFocus polling failures as a stale handle and
+  retries attachment without restarting Playlog;
+- keeps removed games in the activity history with their name, play time,
+  sessions, completion mark and locally cached cover;
+- marks games missing from the current console library as `in history` in the
+  dashboard.
+
 ## 1.1.1-beta.1 — 2026-08-20
 
 - monitors `SceSystemStateMgrStatus` and `SceSystemStateMgrInfo` for early

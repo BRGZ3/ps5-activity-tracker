@@ -1,4 +1,5 @@
 #include "tracker.h"
+#include "game_metadata.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -645,7 +646,9 @@ write_game(FILE *file, uint32_t index, double today_active,
     fprintf(file, "\",\"platform\":\"%s\",\"name\":\"",
             platform_ps5 ? "PS5" : "PS4");
     json_escape(file, display_name(game));
-    fputs("\",\"completed_at\":", file);
+    fprintf(file, "\",\"installed\":%s,\"history_retained\":true",
+            game_metadata_is_installed(game->title_id) ? "true" : "false");
+    fputs(",\"completed_at\":", file);
     if(completed[0]) fprintf(file, "\"%s\"", completed);
     else fputs("null", file);
     fprintf(file,

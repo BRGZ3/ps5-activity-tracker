@@ -20,6 +20,8 @@ class DashboardMobileContractTests(unittest.TestCase):
         self.assertIn('lanReadOnly=!pageIsLoopback()', html)
         self.assertIn('/api/game-icon?title_id=', html)
         self.assertIn('class="game-cover"', html)
+        self.assertIn('g.installed===false', html)
+        self.assertIn('class="history-tag"', html)
         self.assertNotIn('id="settingsFirmware" type="number" min="0.01" max="99.99" step="0.01" inputmode="decimal" placeholder="4.50" required', html)
         self.assertIn('data.timezone_source!=="config"', html)
 

@@ -56,6 +56,8 @@ main(void) {
 
     fake_poll_result = -1;
     assert(app_focus_monitor_poll(&monitor, &old_app_id, &new_app_id) == 0);
+    assert(app_focus_monitor_poll(&monitor, &old_app_id, &new_app_id) == 0);
+    assert(app_focus_monitor_poll(&monitor, &old_app_id, &new_app_id) == -1);
     fake_poll_result = 0;
     fake_pattern = 0x2018;
     assert(app_focus_monitor_poll(&monitor, &old_app_id, &new_app_id) == 1);
