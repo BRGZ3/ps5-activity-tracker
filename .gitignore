@@ -23,6 +23,8 @@ __pycache__/
 *.log
 
 # Build products and release assets
+CHANGELOG.md
+CHANGELOG.ru
 activity-probe/*.elf
 activity-probe/*.plugin
 release-build/app/sce_sys/icon0.png

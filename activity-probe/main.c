@@ -18,7 +18,6 @@
 #include "http_server.h"
 #include "app_focus_monitor.h"
 #include "shell_ui_monitor.h"
-#include "power_monitor.h"
 #include "game_metadata.h"
 
 #define DATA_DIR "/data/ps5-activity"
@@ -36,6 +35,9 @@
 #define STARTUP_DELAY_SECONDS 5
 #define IDLE_POLL_NANOSECONDS 100000000L
 #define FOCUS_REATTACH_INTERVAL_MS 2000ULL
+#define KLOG_REATTACH_INTERVAL_MS 1000ULL
+#define HTTP_REATTACH_INTERVAL_MS 5000ULL
+#define CONSOLE_IP_REFRESH_INTERVAL_MS 5000ULL
 
 #ifndef PROBE_VERSION
 #define PROBE_VERSION "dev"
@@ -68,6 +70,11 @@ static void
 handle_signal(int signal_number) {
     received_signal = signal_number;
     stop_requested = 1;
+}
+
+static int
+open_klog(void) {
+    return open(KLOG_PATH, O_RDONLY | O_NONBLOCK);
 }
 
 static int
@@ -613,17 +620,20 @@ main(void) {
     char read_buffer[1024];
     char line_buffer[LINE_CAPACITY];
     size_t line_length = 0;
-    ssize_t bytes_read;
-    int klog_fd;
+    ssize_t bytes_read = 0;
+    int klog_fd = -1;
     int notify_result;
     int focus_available;
-    int power_available;
+    int klog_retry_reported = 0;
+    int http_retry_reported = 0;
     int focus_retry_reported = 0;
+    uint64_t next_klog_retry_ms = 0;
+    uint64_t next_http_retry_ms = 0;
     uint64_t next_focus_retry_ms = 0;
+    uint64_t next_console_ip_refresh_ms = 0;
     char notify_status[64];
     app_focus_monitor_t focus_monitor;
     shell_ui_monitor_t shell_monitor;
-    power_monitor_t power_monitor;
     struct timespec startup_pause = {STARTUP_DELAY_SECONDS, 0};
 
     if(mkdir(DATA_DIR, 0755) < 0 && errno != EEXIST) {
@@ -641,7 +651,15 @@ main(void) {
     unlink(STOP_PATH);
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
-    signal(SIGHUP, handle_signal);
+    /* A remote browser may disconnect while the LAN response is in flight.
+     * http_server.c also uses MSG_NOSIGNAL, but ignore SIGPIPE at the process
+     * boundary as a fallback for SDKs that do not expose that flag. */
+    signal(SIGPIPE, SIG_IGN);
+    /* The payload is a daemon, not a terminal child.  etaHEN/PLK may close
+     * the launching socket or shell session after a few minutes; a resulting
+     * SIGHUP must not silently tear down tracking and the LAN server.  The
+     * explicit stop file and SIGTERM remain available for controlled stops. */
+    signal(SIGHUP, SIG_IGN);
     {
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
@@ -660,15 +678,18 @@ main(void) {
     } else {
         write_event("dashboard_http_error", NULL, 0,
                     "cannot start local server", NULL);
+        http_retry_reported = 1;
+        next_http_retry_ms = 0;
     }
-    klog_fd = open(KLOG_PATH, O_RDONLY | O_NONBLOCK);
+    klog_fd = open_klog();
     if(klog_fd < 0) {
-        write_event("fatal", NULL, 0, "cannot open /dev/klog", NULL);
-        notify("Playlog: cannot open /dev/klog (%s)", strerror(errno));
-        dashboard_http_stop();
-        fclose(event_file);
-        release_single_instance();
-        return 1;
+        char reason[128];
+        snprintf(reason, sizeof(reason), "open failed: %s", strerror(errno));
+        write_event("klog_unavailable", NULL, 0, reason, NULL);
+        klog_retry_reported = 1;
+        next_klog_retry_ms = 0;
+    } else {
+        write_event("klog_opened", NULL, 0, KLOG_PATH, NULL);
     }
     focus_available = app_focus_monitor_open(&focus_monitor) == 0;
     write_event(focus_available ? "app_focus_monitor" :
@@ -685,11 +706,6 @@ main(void) {
             (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000,
             &old_pid, &new_pid);
     }
-    power_available = power_monitor_open(&power_monitor) == 0;
-    write_event(power_available ? "power_monitor" :
-                "power_monitor_unavailable", NULL, 0,
-                "SceSystemStateMgrInfo+SceSystemStateMgrStatus", NULL);
-
     write_event("probe_start", NULL, 0, "version=" PROBE_VERSION, NULL);
     notify_result = notify("Playlog %s started", TRACKER_VERSION);
     snprintf(notify_status, sizeof(notify_status), "return=%d", notify_result);
@@ -698,7 +714,63 @@ main(void) {
     while(!stop_requested) {
         struct timespec loop_now;
         uint64_t now_ms;
-        bytes_read = read(klog_fd, read_buffer, sizeof(read_buffer));
+        clock_gettime(CLOCK_REALTIME, &loop_now);
+        now_ms = (uint64_t)loop_now.tv_sec * 1000
+            + (uint64_t)loop_now.tv_nsec / 1000000;
+        bytes_read = 0;
+
+        /* /dev/klog can briefly return EIO/EOF while SceShellUI, etaHEN or
+         * the kernel logging endpoint is being restarted.  Treat that as a
+         * recoverable stream interruption instead of terminating Playlog;
+         * otherwise the HTTP server disappears together with the tracker. */
+        if(klog_fd < 0 && now_ms >= next_klog_retry_ms) {
+            klog_fd = open_klog();
+            if(klog_fd >= 0) {
+                line_length = 0;
+                klog_retry_reported = 0;
+                write_event("klog_reopened", NULL, 0, KLOG_PATH, NULL);
+            } else {
+                next_klog_retry_ms = now_ms + KLOG_REATTACH_INTERVAL_MS;
+                if(!klog_retry_reported) {
+                    char reason[128];
+                    snprintf(reason, sizeof(reason), "open failed: %s",
+                             strerror(errno));
+                    write_event("klog_unavailable", NULL, 0, reason, NULL);
+                    klog_retry_reported = 1;
+                }
+            }
+        }
+        if(klog_fd >= 0) {
+            bytes_read = read(klog_fd, read_buffer, sizeof(read_buffer));
+            if(bytes_read < 0 && errno != EAGAIN
+               && errno != EWOULDBLOCK && errno != EINTR) {
+                int error = errno;
+                char reason[128];
+                close(klog_fd);
+                klog_fd = -1;
+                line_length = 0;
+                next_klog_retry_ms = now_ms + KLOG_REATTACH_INTERVAL_MS;
+                bytes_read = 0;
+                if(!klog_retry_reported) {
+                    snprintf(reason, sizeof(reason), "read failed: %s",
+                             strerror(error));
+                    write_event("klog_reopen_pending", NULL, 0, reason, NULL);
+                    klog_retry_reported = 1;
+                }
+            } else if(bytes_read == 0) {
+                close(klog_fd);
+                klog_fd = -1;
+                line_length = 0;
+                next_klog_retry_ms = now_ms + KLOG_REATTACH_INTERVAL_MS;
+                if(!klog_retry_reported) {
+                    write_event("klog_reopen_pending", NULL, 0,
+                                "read returned EOF", NULL);
+                    klog_retry_reported = 1;
+                }
+            } else if(bytes_read < 0) {
+                bytes_read = 0;
+            }
+        }
         if(bytes_read > 0) {
             for(ssize_t i = 0; i < bytes_read; i++) {
                 char value = read_buffer[i];
@@ -718,13 +790,31 @@ main(void) {
                     }
                 }
             }
-        } else if(bytes_read < 0 && errno != EAGAIN
-                  && errno != EWOULDBLOCK && errno != EINTR) {
-            break;
         }
-        clock_gettime(CLOCK_REALTIME, &loop_now);
-        now_ms = (uint64_t)loop_now.tv_sec * 1000
-            + (uint64_t)loop_now.tv_nsec / 1000000;
+        /* Do not enter process/event-flag syscalls after the console has
+         * asked the payload to stop.  During suspend/shutdown those kernel
+         * services may already be disappearing. */
+        if(stop_requested) break;
+        if(!dashboard_http_is_running() && now_ms >= next_http_retry_ms) {
+            if(dashboard_http_start() == 0) {
+                write_event("dashboard_http_restarted", NULL, 0,
+                            "http://127.0.0.1:12888/", NULL);
+                http_retry_reported = 0;
+                next_http_retry_ms = now_ms + HTTP_REATTACH_INTERVAL_MS;
+            } else {
+                if(!http_retry_reported) {
+                    write_event("dashboard_http_error", NULL, 0,
+                                "retry failed; server will retry", NULL);
+                    http_retry_reported = 1;
+                }
+                next_http_retry_ms = now_ms + HTTP_REATTACH_INTERVAL_MS;
+            }
+        }
+        if(now_ms >= next_console_ip_refresh_ms) {
+            tracker_refresh_console_ip();
+            next_console_ip_refresh_ms = now_ms
+                + CONSOLE_IP_REFRESH_INTERVAL_MS;
+        }
         {
             pid_t old_pid = 0;
             pid_t new_pid = 0;
@@ -790,16 +880,6 @@ main(void) {
                 next_focus_retry_ms = now_ms + FOCUS_REATTACH_INTERVAL_MS;
             }
         }
-        if(power_available) {
-            const char *reason = NULL;
-            if(power_monitor_poll(&power_monitor, &reason) > 0) {
-                snprintf(stop_reason, sizeof(stop_reason), "%s",
-                         reason ? reason : "system power transition");
-                write_event("suspend_prepare", foreground_title,
-                            foreground_app_id, stop_reason, NULL);
-                stop_requested = 1;
-            }
-        }
         {
             struct timespec pause = {0, IDLE_POLL_NANOSECONDS};
             tracker_tick(now_ms);
@@ -828,8 +908,7 @@ main(void) {
     }
     dashboard_http_stop();
     app_focus_monitor_close(&focus_monitor);
-    power_monitor_close(&power_monitor);
-    close(klog_fd);
+    if(klog_fd >= 0) close(klog_fd);
     fclose(event_file);
     release_single_instance();
     return bytes_read < 0 ? 1 : 0;

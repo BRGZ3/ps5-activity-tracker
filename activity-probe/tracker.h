@@ -15,13 +15,28 @@
 #define TRACKER_BACKUPS_DIR TRACKER_DATA_DIR "/backups"
 #define TRACKER_BACKUPS_INDEX_PATH TRACKER_DATA_DIR "/backups.json"
 
+#define TRACKER_GAME_NAME_SIZE 256
+
+typedef struct tracker_game_stats {
+    char name[TRACKER_GAME_NAME_SIZE];
+    uint32_t session_count;
+    uint64_t active_ms;
+    uint64_t paused_ms;
+    uint64_t first_played_ms;
+    uint64_t last_played_ms;
+    uint64_t completed_ms;
+} tracker_game_stats_t;
+
 int tracker_init(uint64_t realtime_ms);
+/* Refresh the address shown in summary.json after networking comes up. */
+void tracker_refresh_console_ip(void);
 void tracker_event(const char *event, const char *title_id,
                    const char *title_name, uint64_t realtime_ms);
 void tracker_tick(uint64_t realtime_ms);
 void tracker_shutdown(uint64_t realtime_ms);
 int tracker_set_completed(const char *title_id, int completed,
                           uint64_t realtime_ms);
+int tracker_get_game_stats(const char *title_id, tracker_game_stats_t *output);
 int tracker_set_config(int timezone_offset, const char *timezone,
                        const char *firmware, uint64_t realtime_ms);
 int tracker_backup_create(uint64_t realtime_ms, char *backup_id,

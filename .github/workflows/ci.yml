@@ -1,4 +1,4 @@
-name: v1.0 checks
+name: Playlog checks
 
 on:
   push:

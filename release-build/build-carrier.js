@@ -1,7 +1,7 @@
 const fs = require("fs");
 
-if (process.argv.length !== 9) {
-  console.error("usage: node build-carrier.js <png> <output> <dashboard> <elf> <package-version> <tracker-version> <dashboard-version>");
+if (process.argv.length !== 10) {
+  console.error("usage: node build-carrier.js <png> <output> <dashboard> <library> <elf> <package-version> <tracker-version> <dashboard-version>");
   process.exit(2);
 }
 
@@ -9,7 +9,8 @@ const png = fs.readFileSync(process.argv[2]);
 const output = process.argv[3];
 const entries = [
   { type: 1, data: fs.readFileSync(process.argv[4]) },
-  { type: 3, data: fs.readFileSync(process.argv[5]) },
+  { type: 4, data: fs.readFileSync(process.argv[5]) },
+  { type: 3, data: fs.readFileSync(process.argv[6]) },
 ];
 
 function crc32(buffer) {
@@ -31,9 +32,9 @@ const header = Buffer.concat([
   Buffer.from("PLGBND02", "ascii"),
   Buffer.from([2, 0, 0, 0]),
   Buffer.from([entries.length, 0, 0, 0]),
-  fixed(process.argv[6], 16),
   fixed(process.argv[7], 16),
   fixed(process.argv[8], 16),
+  fixed(process.argv[9], 16),
 ]);
 const chunks = [header];
 for (const entry of entries) {

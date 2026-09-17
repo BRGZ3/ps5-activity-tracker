@@ -7,27 +7,29 @@ include $(PS5_PAYLOAD_SDK)/toolchain/prospero.mk
 include plugin.mk
 
 ELF := activity-probe.elf
-LITE_ELF := activity-probe-lite.elf
-CFLAGS := -Wall -Wextra -Werror -O2 -DPROBE_VERSION=\"0.6.0-beta.1\" \
-	-DTRACKER_VERSION=\"1.45\" -DDASHBOARD_VERSION=\"1.44.0\"
-LITE_CFLAGS := -Wall -Wextra -Werror -O2 \
-	-DPROBE_VERSION=\"compat-0.1\" -DTRACKER_VERSION=\"compat-0.1\" \
-	-DDASHBOARD_VERSION=\"compat-0.1\" -DLITE_INSTALLER
+SQLITE_PREFIX ?= $(PS5_SYSROOT)$(PS5_HBROOT)
+SQLITE_CFLAGS ?= -I$(SQLITE_PREFIX)/include
+SQLITE_LDFLAGS ?= -L$(SQLITE_PREFIX)/lib
+SQLITE_LIBS ?= -lsqlite3
+CFLAGS := -Wall -Wextra -Werror -O2 $(SQLITE_CFLAGS) \
+	-DPROBE_VERSION=\"0.7.0\" \
+	-DTRACKER_VERSION=\"1.64\" -DDASHBOARD_VERSION=\"1.49.0\"
 
-.PHONY: all clean
+.PHONY: all clean plugin check-sqlite
 
 all: $(ELF)
 
-$(ELF): main.c app_focus_monitor.c app_focus_monitor.h shell_ui_monitor.c shell_ui_monitor.h power_monitor.c power_monitor.h game_metadata.c game_metadata.h tracker.c tracker.h http_server.c http_server.h \
-		offline_update.c offline_update.h
-	$(CC) $(CFLAGS) -o $@ main.c app_focus_monitor.c shell_ui_monitor.c power_monitor.c game_metadata.c tracker.c http_server.c offline_update.c
+check-sqlite:
+	@test -f "$(SQLITE_PREFIX)/include/sqlite3.h" || \
+		(echo "Missing sqlite3.h; install ps5-payload-sqlite or set SQLITE_PREFIX" >&2; exit 1)
+	@test -f "$(SQLITE_PREFIX)/lib/libsqlite3.a" || \
+		(echo "Missing libsqlite3.a; install ps5-payload-sqlite or set SQLITE_PREFIX" >&2; exit 1)
 
-$(LITE_ELF): lite_main.c tracker.c tracker.h http_server.c http_server.h \
-		offline_update.c offline_update.h
-	$(CC) $(LITE_CFLAGS) -o $@ lite_main.c game_metadata.c tracker.c http_server.c \
-		offline_update.c
 
-lite: $(LITE_ELF)
+$(ELF): check-sqlite main.c app_focus_monitor.c app_focus_monitor.h shell_ui_monitor.c shell_ui_monitor.h game_metadata.c game_metadata.h game_library.c game_library.h tracker.c tracker.h http_server.c http_server.h \
+		offline_update.c offline_update.h
+	$(CC) $(CFLAGS) $(SQLITE_LDFLAGS) -o $@ main.c app_focus_monitor.c shell_ui_monitor.c game_metadata.c game_library.c tracker.c http_server.c offline_update.c $(SQLITE_LIBS)
+	$(STRIP) --strip-all $@
 
 clean:
-	rm -f $(ELF) $(LITE_ELF) $(PLUGIN)
+	rm -f $(ELF) $(PLUGIN)

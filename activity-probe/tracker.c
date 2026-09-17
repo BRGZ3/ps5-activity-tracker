@@ -147,6 +147,7 @@ static void
 detect_console_ip(void) {
     struct ifaddrs *addresses = NULL;
     struct ifaddrs *current;
+    snprintf(console_ip, sizeof(console_ip), "unavailable");
     if(getifaddrs(&addresses) != 0) return;
     for(current = addresses; current; current = current->ifa_next) {
         struct sockaddr_in *ipv4;
@@ -1410,6 +1411,13 @@ tracker_init(uint64_t now_ms) {
     return 0;
 }
 
+void
+tracker_refresh_console_ip(void) {
+    pthread_mutex_lock(&state_mutex);
+    detect_console_ip();
+    pthread_mutex_unlock(&state_mutex);
+}
+
 static void
 tracker_event_unlocked(const char *event, const char *title_id,
                        const char *title_name, uint64_t now_ms) {
@@ -1480,6 +1488,29 @@ tracker_event(const char *event, const char *title_id,
     pthread_mutex_lock(&state_mutex);
     tracker_event_unlocked(event, title_id, title_name, now_ms);
     pthread_mutex_unlock(&state_mutex);
+}
+
+int
+tracker_get_game_stats(const char *title_id, tracker_game_stats_t *output) {
+    int index;
+    if(!title_id || !output) return -1;
+    pthread_mutex_lock(&state_mutex);
+    index = game_index(title_id, 0);
+    if(index < 0) {
+        pthread_mutex_unlock(&state_mutex);
+        return -1;
+    }
+    memset(output, 0, sizeof(*output));
+    snprintf(output->name, sizeof(output->name), "%s",
+             display_name(&state.games[index]));
+    output->session_count = state.games[index].session_count;
+    output->active_ms = state.games[index].active_ms;
+    output->paused_ms = state.games[index].paused_ms;
+    output->first_played_ms = state.games[index].first_played_ms;
+    output->last_played_ms = state.games[index].last_played_ms;
+    output->completed_ms = completed_ms(title_id);
+    pthread_mutex_unlock(&state_mutex);
+    return 0;
 }
 
 void

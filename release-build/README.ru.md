@@ -8,13 +8,19 @@
 ## Входные файлы
 
 - `../dashboard/index.html` — dashboard;
-- `../activity-probe/activity-probe.elf` — runtime;
+- `../dashboard/library.html` — страница библиотеки установленных игр;
+- `../activity-probe/activity-probe.elf` — runtime (требуется статический
+  пакет `ps5-payload-sqlite` в SDK);
 - `app/sce_sys/param.json` — Media metadata;
-- `build-carrier.js` — PNG + dashboard/ELF carrier;
+- `playlog-logo.png` — исходная иконка, которая попадает в ярлык PS5;
+- `build-carrier.js` — PNG + dashboard/library/ELF carrier;
 - `builder/` — LibProsperoPKG wrapper.
 
 `make` сначала собирает ELF из исходников, затем создаёт carrier и запускает
 валидатор PKG. Результаты находятся в `dist/`, который исключён из Git.
+В carrier по порядку лежат основной dashboard, `library.html` и runtime;
+updater считает запись библиотеки необязательной для совместимости со старыми
+carrier из двух записей.
 
 ## Требования
 
@@ -25,6 +31,14 @@ Node.js
 Docker с linux/arm64
 исходники LibProsperoPKG или готовый `LibProsperoPkg.dll`
 ```
+
+В sysroot SDK также должен быть `ps5-payload-sqlite` в
+`target/user/homebrew`. Перед `make` соберите этот пакет из репозитория PS5
+Payload pacbrew либо задайте `SQLITE_PREFIX` для другого расположения.
+
+Внешний `release-build/Makefile` передаёт `SQLITE_PREFIX` во внутреннюю
+сборку runtime и копирует `playlog-logo.png` в ярлык перед добавлением offline
+carrier.
 
 Путь к builder можно задать:
 

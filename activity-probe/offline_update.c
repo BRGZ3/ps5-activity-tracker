@@ -41,16 +41,12 @@ tracker_backup_create(uint64_t now_ms, char *backup_id,
 #ifndef DASHBOARD_TARGET
 #define DASHBOARD_TARGET "/data/ps5-activity/dashboard/index.html"
 #endif
+#ifndef DASHBOARD_LIBRARY_TARGET
+#define DASHBOARD_LIBRARY_TARGET "/data/ps5-activity/dashboard/library.html"
+#endif
 #ifndef ETAHEN_TARGET
 #define ETAHEN_TARGET "/data/etaHEN/plugins/ps5-activity-tracker.plugin"
 #endif
-#ifdef LITE_INSTALLER
-#define ETAHEN_ELF_TARGET \
-    "/data/etaHEN/plugins/playlog-compatibility-test.elf"
-#define AUTOLOADER_TARGET \
-    "/data/ps5_autoloader/playlog-compatibility-test.elf"
-#define AUTOLOADER_NAME "playlog-compatibility-test.elf"
-#else
 #ifndef ETAHEN_ELF_TARGET
 #define ETAHEN_ELF_TARGET "/data/etaHEN/plugins/Playlog.elf"
 #endif
@@ -58,7 +54,6 @@ tracker_backup_create(uint64_t now_ms, char *backup_id,
 #define AUTOLOADER_TARGET "/data/ps5_autoloader/Playlog.elf"
 #endif
 #define AUTOLOADER_NAME "Playlog.elf"
-#endif
 #define ETAHEN_ELF_AUTOSTART ETAHEN_ELF_TARGET ".auto_start"
 #ifndef AUTOLOADER_LIST
 #define AUTOLOADER_LIST "/data/ps5_autoloader/autoload.txt"
@@ -85,7 +80,8 @@ tracker_backup_create(uint64_t now_ms, char *backup_id,
 enum update_entry_type {
     ENTRY_DASHBOARD = 1,
     ENTRY_PLUGIN = 2,
-    ENTRY_ELF = 3
+    ENTRY_ELF = 3,
+    ENTRY_LIBRARY = 4
 };
 
 typedef struct __attribute__((packed)) bundle_header {
@@ -137,6 +133,30 @@ static int
 path_exists(const char *path) {
     struct stat info;
     return stat(path, &info) == 0;
+}
+
+static int
+file_contains(const char *path, const char *needle) {
+    struct stat info;
+    FILE *file;
+    char *contents;
+    size_t length;
+    if(!path || !needle || !needle[0]
+       || stat(path, &info) != 0 || info.st_size <= 0
+       || info.st_size > (off_t)(4 * 1024 * 1024)) return 0;
+    file = fopen(path, "rb");
+    if(!file) return 0;
+    contents = malloc((size_t)info.st_size + 1);
+    if(!contents) {
+        fclose(file);
+        return 0;
+    }
+    length = fread(contents, 1, (size_t)info.st_size, file);
+    fclose(file);
+    contents[length] = '\0';
+    int found = length == (size_t)info.st_size && strstr(contents, needle) != NULL;
+    free(contents);
+    return found;
 }
 
 static int
@@ -237,12 +257,54 @@ read_bundle(const char *path, update_bundle_t *bundle) {
 }
 
 static int
+version_compare(const char *left, const char *right) {
+    const char *a = left;
+    const char *b = right;
+    while((a && *a) || (b && *b)) {
+        unsigned long left_part = 0;
+        unsigned long right_part = 0;
+        while(a && *a >= '0' && *a <= '9') {
+            left_part = left_part * 10 + (unsigned long)(*a - '0');
+            a++;
+        }
+        while(b && *b >= '0' && *b <= '9') {
+            right_part = right_part * 10 + (unsigned long)(*b - '0');
+            b++;
+        }
+        if(left_part != right_part) return left_part > right_part ? 1 : -1;
+        while(a && *a && *a != '.') a++;
+        while(b && *b && *b != '.') b++;
+        if(a && *a == '.') a++;
+        if(b && *b == '.') b++;
+    }
+    return 0;
+}
+
+static int
 find_bundle(update_bundle_t *bundle) {
-    if(read_bundle(UPDATE_CARRIER_RELEASE, bundle) == 0) return 0;
-    if(read_bundle(UPDATE_CARRIER_CLEAN, bundle) == 0) return 0;
-    if(read_bundle(UPDATE_CARRIER_COMPAT, bundle) == 0) return 0;
-    if(read_bundle(UPDATE_CARRIER_PRIMARY, bundle) == 0) return 0;
-    return -1;
+    static const char *paths[] = {
+        UPDATE_CARRIER_RELEASE,
+        "/user/app/ACTV00002/sce_sys/icon0.png",
+        "/system_ex/app/ACTV00002/sce_sys/icon0.png",
+        "/system_data/priv/mms/appmeta/ACTV00002/icon0.png",
+        "/system_data/priv/appmeta/ACTV00002/icon0.png",
+        UPDATE_CARRIER_CLEAN,
+        UPDATE_CARRIER_COMPAT,
+        UPDATE_CARRIER_PRIMARY
+    };
+    update_bundle_t best;
+    int found = 0;
+    for(size_t i = 0; i < sizeof(paths) / sizeof(paths[0]); i++) {
+        update_bundle_t candidate;
+        if(read_bundle(paths[i], &candidate) != 0) continue;
+        if(!found || version_compare(candidate.header.package_version,
+                                     best.header.package_version) > 0) {
+            best = candidate;
+            found = 1;
+        }
+    }
+    if(found && bundle) *bundle = best;
+    return found ? 0 : -1;
 }
 
 static const char *
@@ -272,6 +334,7 @@ target_for_type(uint32_t type) {
     if(type == ENTRY_DASHBOARD) return DASHBOARD_TARGET;
     if(type == ENTRY_PLUGIN) return ETAHEN_TARGET;
     if(type == ENTRY_ELF) return RUNTIME_TARGET;
+    if(type == ENTRY_LIBRARY) return DASHBOARD_LIBRARY_TARGET;
     return NULL;
 }
 
@@ -722,6 +785,8 @@ offline_setup_install(const char *mode, char *output, size_t output_size) {
         if(entry.type == ENTRY_DASHBOARD) {
             if(copy_entry(source, &entry, DASHBOARD_TARGET) != 0) goto failure;
             dashboard_written = 1;
+        } else if(entry.type == ENTRY_LIBRARY) {
+            if(copy_entry(source, &entry, DASHBOARD_LIBRARY_TARGET) != 0) goto failure;
         } else if(entry.type == ENTRY_ELF) {
             if(copy_entry(source, &entry, RUNTIME_TARGET) != 0) goto failure;
             runtime_written = 1;
@@ -786,6 +851,9 @@ int
 offline_update_status_json(char *output, size_t output_size) {
     update_bundle_t bundle;
     char applied[16] = "";
+    int applied_matches;
+    int dashboard_matches;
+    int runtime_matches;
     int available;
     int pending_restart;
     if(find_bundle(&bundle) != 0) {
@@ -797,9 +865,14 @@ offline_update_status_json(char *output, size_t output_size) {
             TRACKER_VERSION, DASHBOARD_VERSION) < (int)output_size ? 0 : -1;
     }
     read_applied_version(applied);
-    available = strcmp(applied, bundle.header.package_version) != 0;
-    pending_restart = !available
-        && strcmp(TRACKER_VERSION, bundle.header.tracker_version) != 0;
+    applied_matches = strcmp(applied, bundle.header.package_version) == 0;
+    dashboard_matches = file_contains(DASHBOARD_TARGET,
+                                       bundle.header.dashboard_version)
+        && file_contains(DASHBOARD_LIBRARY_TARGET,
+                         bundle.header.dashboard_version);
+    runtime_matches = strcmp(TRACKER_VERSION, bundle.header.tracker_version) == 0;
+    available = !applied_matches || !dashboard_matches;
+    pending_restart = applied_matches && dashboard_matches && !runtime_matches;
     return snprintf(
         output, output_size,
         "{\"ok\":true,\"available\":%s,\"pending_restart\":%s,"
@@ -856,7 +929,7 @@ offline_update_apply(char *output, size_t output_size) {
             if(fseeko(source, entry.length, SEEK_CUR) != 0) goto invalid;
         } else {
             if(copy_entry(source, &entry, target) != 0) goto failure;
-            if(entry.type == ENTRY_DASHBOARD) dashboard = 1;
+            if(entry.type == ENTRY_DASHBOARD || entry.type == ENTRY_LIBRARY) dashboard = 1;
             else runtime = 1;
         }
         consumed += entry.length;

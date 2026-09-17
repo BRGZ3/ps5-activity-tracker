@@ -44,13 +44,18 @@ def main() -> int:
             continue
         normalized = "/".join(relative.parts)
         if (
-            relative.parts
-            and relative.parts[0] == "release-assets"
-        ) or normalized.startswith(
-            ("release-build/dist/", "release-build/builder/bin/",
-             "release-build/builder/obj/")
-        ) or (relative.parts and relative.parts[0] == "activity-probe"
-              and path.suffix.lower() in {".elf", ".plugin"}):
+            (relative.parts and relative.parts[0] == "release-assets")
+            or normalized.startswith(
+                ("release-build/dist/", "release-build/builder/bin/",
+                 "release-build/builder/obj/")
+            )
+            or normalized == "release-build/app/sce_sys/icon0.png"
+            or (
+                relative.parts
+                and relative.parts[0] == "activity-probe"
+                and path.suffix.lower() in {".elf", ".plugin"}
+            )
+        ):
             continue
         if len(relative.parts) == 1 and relative.name in FORBIDDEN_ROOT_FILES:
             failures.append(f"private root file: {relative}")

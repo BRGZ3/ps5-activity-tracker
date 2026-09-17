@@ -1,8 +1,23 @@
 #include "http_server.h"
+#include "tracker.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+int
+tracker_get_game_stats(const char *title_id, tracker_game_stats_t *output) {
+    if(!title_id || !output || strcmp(title_id, "PPSA02177") != 0) {
+        return -1;
+    }
+    memset(output, 0, sizeof(*output));
+    snprintf(output->name, sizeof(output->name), "Library Game");
+    output->session_count = 2;
+    output->active_ms = 125000;
+    output->paused_ms = 30000;
+    output->last_played_ms = 1785362400000ULL;
+    return 0;
+}
 
 int
 tracker_set_completed(const char *title_id, int completed,

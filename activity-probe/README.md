@@ -6,11 +6,38 @@
 to `CUSA...`/`PPSA...`, tracks sessions, and serves the local dashboard on port
 `12888`.
 
+The dashboard's library page is served at `/library.html`; its read-only API is
+`/api/installed-games`. The scanner reads the console title registry at
+`/system_data/priv/mms/app.db` and accepts valid CUSA/PPSA rows regardless of
+firmware-specific `categoryType` values. Each row is additionally checked
+against content roots used by internal/external/portable installs. Persistent
+`appmeta` metadata is not sufficient evidence because it can remain after a
+title is removed; ShadowMount+ mount links under `/user/app/<TITLE_ID>` are
+accepted. The API
+returns `installed:true` for titles still present and `installed:false` for
+previously registered titles that are now absent. Known media/system
+applications and DLC (`addcont.db`) are not included. If the registry is
+temporarily unavailable, internal, external and portable-game directories are
+scanned as a fallback.
+
+A `/user/app/<TITLE_ID>` staging directory containing only `sce_sys/param.sfo`
+or `param.json` is not considered live. The content root must expose
+`eboot.bin`/`app.pkg`, or a `mount.lnk` whose target still exists.
+
+When no games are returned, the API also reports `source`, `database_status`
+and `database_rows`. These fields distinguish an actually empty registry from
+an unavailable/locked database and are useful when collecting a diagnostic
+report from a console.
+
 ## Build
 
 ```bash
 PS5_PAYLOAD_SDK=/path/to/ps5-payload-sdk make
 ```
+
+The SDK must also contain the static `ps5-payload-sqlite` package under
+`/user/homebrew` (`sqlite3.h` and `libsqlite3.a`). Set `SQLITE_PREFIX` when the
+package is installed in a different sysroot location.
 
 The primary result is `activity-probe.elf`. ELF and plugin files are generated
 artifacts and are excluded from Git.
@@ -58,11 +85,24 @@ The release uses one mode at a time. Do not leave an old
 ```
 
 Game totals, sessions, completion marks, names and cached covers remain in the
-history when a game is removed from the console. The dashboard labels such a
-row as `in history`.
+Playlog history when a game is removed from the console. The library's second
+section is independent of that history and represents the system registry.
 
 Playlog also watches the `SceShellUI` PID. If the shell is replaced while the
-runtime remains alive, the stale AppFocus handle is closed and reopened.
+runtime remains alive, the stale AppFocus handle is closed and reopened. The
+runtime does not subscribe to system power-transition events or stop itself
+during suspend/shutdown; the console owns that lifecycle so the payload cannot
+hold the system on a blue-light shutdown path.
+
+The `/dev/klog` reader is self-healing: transient EOF/read errors close and
+reopen the device in the background instead of terminating the runtime. The
+HTTP writer uses `MSG_NOSIGNAL`, so a browser that disconnects during a large
+response cannot kill Playlog with `SIGPIPE`. If the listener itself exits, the
+main loop retries the LAN server automatically.
+
+Game icons are resolved from conventional appmeta/mounted-content paths first,
+then from the read-only `icon0Info`/`metaDataPath` fields in `app.db` (including
+the shell's `?ts=...` suffix). A copy is kept under `/data/ps5-activity/covers`.
 
 `probe-events.jsonl` may also be present and grows without rotation.
 Do not attach it to a public issue together with personal history.

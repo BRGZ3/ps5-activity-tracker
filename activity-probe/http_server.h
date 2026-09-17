@@ -10,5 +10,6 @@
 
 int dashboard_http_start(void);
 void dashboard_http_stop(void);
+int dashboard_http_is_running(void);
 
 #endif

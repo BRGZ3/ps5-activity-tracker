@@ -41,6 +41,10 @@
     .utility-switch { margin-right:0 }
     .lang-switch button.utility { min-width:38px; color:#b8cae3; padding:6px 9px }
     .lang-switch button.utility:focus { color:white; background:#1978e8; outline:2px solid #75b6ff }
+    .lang-switch a.utility { display:grid; place-items:center; min-width:38px; color:#b8cae3;
+      padding:6px 9px; border-radius:7px; text-decoration:none }
+    .lang-switch a.utility:hover,.lang-switch a.utility:focus { color:white; background:#1978e8;
+      outline:2px solid #75b6ff }
     .utility svg { display:block; width:17px; height:17px; fill:none; stroke:currentColor;
       stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; pointer-events:none }
     .update-button { display:none; border:1px solid #f1bd38; border-radius:10px; padding:9px 13px;
@@ -296,6 +300,9 @@
         <div class="readonly-notice" id="readonlyNotice"><i></i><span id="readonlyNoticeText"></span></div>
         <button type="button" class="update-button" id="applyUpdate">Доступно обновление</button>
         <div class="lang-switch utility-switch" aria-label="Dashboard tools">
+          <a class="utility library-link" id="libraryLink" href="library.html?v=1.49.0" aria-label="Game library" title="Game library">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h8M8 15h5"/></svg>
+          </a>
           <button type="button" class="utility" id="openBackups" data-lang="backup" aria-label="Backups" title="Backups">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg>
           </button>
@@ -368,7 +375,7 @@
     </section>
 
     <footer class="footer">
-      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.44.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
+      <div class="foot-info"><span>FW <b class="accent" id="firmware">—</b></span><span>Tracker <b class="accent" id="trackerVersion">—</b></span><span>UI <b class="accent">1.49.0</b></span><span>TZ <b class="accent" id="timezoneName">—</b></span><span>IP <b class="accent" id="dashboardHost">—</b></span></div>
       <div class="foot-status"><span id="updated">Обновлено: —</span><span><i class="dot" style="display:inline-block;margin-right:7px"></i><span data-i18n="localData">локальные данные</span></span></div>
     </footer>
   </main>
@@ -471,6 +478,8 @@
           el.classList.toggle("active",el.dataset.lang===lang);
         }
       });
+      $("libraryLink").title=lang==="ru"?"Библиотека игр":"Game library";
+      $("libraryLink").setAttribute("aria-label",$("libraryLink").title);
       document.querySelector('[data-scope="all"]').textContent=lang==="ru"?"Всё время":"All time";
       document.querySelector('[data-scope="today"]').textContent=lang==="ru"?"Сегодня":"Today";
       $("settingsTitle").textContent=lang==="ru"?"Настройка трекера":"Tracker setup";
@@ -698,9 +707,9 @@
         const scopedSessions=gameScope==="today"?g.today_session_count:g.session_count;
         const platform=esc((g.platform||"").toLowerCase());
         const titleId=esc(g.title_id||"");
-        const iconUrl=`/api/game-icon?title_id=${encodeURIComponent(g.title_id||"")}`;
+        const iconUrl=`/api/game-icon?title_id=${encodeURIComponent(g.title_id||"")}&v=${encodeURIComponent(data.generated_at||Date.now())}`;
         const historyTag=g.installed===false?` · <em class="history-tag">${t("history")}</em>`:"";
-        return `<tr><td><div class="game-cell"><div class="game-cover"><img src="${iconUrl}" loading="lazy" alt="" onerror="this.style.display='none'"><span class="${platform}">${esc(g.platform||"—")}</span></div><div class="game"><span class="platform ${platform}">${esc(g.platform || "—")}</span>${esc(g.name || g.title_id)}<small>${titleId}${historyTag}</small></div></div></td>
+        return `<tr><td><div class="game-cell"><div class="game-cover"><img src="${iconUrl}" alt="" onerror="this.style.display='none'"><span class="${platform}">${esc(g.platform||"—")}</span></div><div class="game"><span class="platform ${platform}">${esc(g.platform || "—")}</span>${esc(g.name || g.title_id)}<small>${titleId}${historyTag}</small></div></div></td>
           <td class="num">${duration(scopedTime)}</td><td class="num">${scopedSessions || 0}</td><td class="num">${shortDate(g.last_played_at_local || g.last_played_at)}</td>
           <td class="num"><button type="button" class="completion ${done?"done":""}" data-complete="${esc(g.title_id)}">${done?t("undoComplete"):t("markComplete")}</button></td></tr>`;
       }).join("") || `<tr><td colspan="5">${t("noGames")}</td></tr>`;
@@ -871,9 +880,9 @@
     });
     applyLanguage();
     loadAccess();
-    const loadData=()=>fetch(`summary.json?t=${Date.now()}`,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error(r.status);return r.json()});
+    const loadData=()=>fetch(`/summary.json?t=${Date.now()}`,{cache:"no-store"}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json()});
     loadData().then(data => { currentData=data; render(data) })
-      .catch(() => $("events").innerHTML='<div class="empty">Could not load summary.json</div>');
+      .catch(error => $("events").innerHTML=`<div class="empty">${lang==="ru"?"Не удалось загрузить summary.json: ":"Could not load summary.json: "}${esc(error.message)}</div>`);
     checkUpdate();
     setInterval(() => loadData().then(data => {
       currentData=data;
